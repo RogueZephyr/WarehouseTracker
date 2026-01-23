@@ -42,4 +42,3 @@ Keep changes small and focused. Prioritize correctness and clarity over visual p
 ## Notes
 
 This repository is intended as a learning project and foundation. Future expansions may include authentication, an activity log, filters by shift/date, and export options.
-

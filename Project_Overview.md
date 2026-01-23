@@ -1,6 +1,3 @@
-
----
-
 # Warehouse Loading Tracker
 
 ## Overview
