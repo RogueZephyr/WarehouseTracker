@@ -24,11 +24,11 @@ Keep a concise, real-time board of loading activity so teams can see shipment pr
 
 ## Getting started
 
-This project is intentionally minimal and framework-agnostic for the first version. Suggested local steps for implementers:
+This project is intentionally minimal, but the recommended MVP approach is a Django monolith (server-rendered HTML) to maximize development speed and reduce complexity while you learn. Suggested local steps for implementers:
 
 - Create a project folder and a Python virtual environment (if using Python).
-- Implement a small backend to store and validate the load entries (SQLite or simple JSON for a prototype).
-- Build a lightweight web UI that displays the board and allows quick updates.
+- Implement a small backend to store and validate the load entries (SQLite for the MVP or simple JSON for a quick prototype).
+- Build a lightweight server-rendered web UI (Django Templates) that displays the board and allows quick updates.
 - See `Project_Overview.md` for goals, constraints, and design considerations.
 
 ## Contributing

@@ -1,0 +1,7 @@
+{
+  "statuses": {
+    "pending":    {"label":"Pending","color":"gray","next":["in-process"]},
+    "in-process": {"label":"In Process","color":"yellow","next":["pending","complete"]},
+    "complete":   {"label":"Complete","color":"green","next":[]}
+  }
+}
