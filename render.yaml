@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: warehouse-tracker-backend
+    runtime: python
+    buildCommand: "pip install . && pip install gunicorn django-cors-headers"
+    startCommand: "gunicorn config.wsgi:application"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DEBUG
+        value: "False"
+      - key: ALLOWED_HOSTS
+        sync: false
+      - key: CSRF_TRUSTED_ORIGINS
+        sync: false
