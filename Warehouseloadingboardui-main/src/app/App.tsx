@@ -65,19 +65,28 @@ const toBackend = (load: Partial<Load>): any => {
     'Large': 'large'
   };
 
-  return {
+  const payload: any = {
     client_name: load.clientName,
-    expected_qty: load.expectedQty,
+    expected_qty: load.expectedQty ? Number(load.expectedQty) : undefined,
     format: load.format ? formatMap[load.format] : undefined,
     load_order: load.loadOrder,
     route_code: load.routeCode,
-    route_group_id: load.routeGroup, // Added mapping
-    pallet_count: load.palletCount,
+    route_group_id: load.routeGroup,
+    pallet_count: load.palletCount ? Number(load.palletCount) : undefined,
     vehicle_id: load.vehicleId,
     status: load.status ? statusMap[load.status] : undefined,
-    loaded_qty: load.loadedQty,
-    missing_refs: load.missingIds, // Added mapping
+    loaded_qty: load.loadedQty !== undefined ? Number(load.loadedQty) : undefined,
+    missing_refs: load.missingIds || [],
   };
+
+  // Remove undefined fields to avoid sending null values
+  Object.keys(payload).forEach(key => {
+    if (payload[key] === undefined) {
+      delete payload[key];
+    }
+  });
+
+  return payload;
 };
 
 
