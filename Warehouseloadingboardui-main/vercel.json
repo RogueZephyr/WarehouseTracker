@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "https://warehouse-tracker-backend.onrender.com/api/$1"
+    }
+  ]
+}

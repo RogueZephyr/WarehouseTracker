@@ -170,6 +170,9 @@ This composable approach keeps the stack within the free tiers - Supabase for st
 
 ---
 
+### Render pipeline validation
+Run `pytest tests/test_render_env_pipeline.py` to ensure all required Render environment variables are defined (`SECRET_KEY`, `DATABASE_URL`, `ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS`, `CORS_ALLOWED_ORIGINS`, `REPOSITORY_BACKEND`, `DEBUG`). The same test suite also replays Render’s build/migrate/start pipeline (`pip install .`, `pip install gunicorn django-cors-headers`, `python manage.py migrate --noinput`, `gunicorn config.wsgi:application --check-config`) when you enable it by setting `RUN_RENDER_COMMANDS=1`. Use this to double-check your Render/Supabase configuration before pushing.
+
 ## Backend CORS Configuration (Django)
 
 I have pre-configured `config/settings.py` with `django-cors-headers`. You just need to ensure the following environment variable is set on your host:
