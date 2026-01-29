@@ -31,7 +31,10 @@ class OrmRepository(Repository):
         except ValueError:
             load_uuid = UUID(str(load.id))
 
-        obj, _ = self._model.objects.get_or_create(id=load_uuid)
+        obj = self._model.objects.filter(id=load_uuid).first()
+        if not obj:
+            obj = self._model(id=load_uuid)
+
         obj.client_name = load.client_name
         obj.expected_qty = load.expected_qty
         obj.format = load.format.value if hasattr(load.format, "value") else load.format
