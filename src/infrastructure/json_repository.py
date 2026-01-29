@@ -27,6 +27,9 @@ class JsonRepository(Repository):
         except (json.JSONDecodeError, FileNotFoundError):
             return []
 
+    def list_all(self) -> List[LoadRecord]:
+        return self._load_all()
+
     def _save_all(self, loads: List[LoadRecord]):
         data = [self._to_dict(load) for load in loads]
         with open(self.filepath, "w") as f:

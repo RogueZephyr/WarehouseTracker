@@ -109,6 +109,65 @@ If you want a persistent PostgreSQL database instead of the prototype SQLite:
 2.  Add a `DATABASE_URL` environment variable to your Web Service.
 3.  Ensure your code uses `dj-database-url` to parse it (not included in this prototype setup).
 
+## Option 4: Composable Stack (Render Backend + Supabase Postgres + Vercel Frontend)
+
+This repository now supports running all load logic via Django's ORM, so you can pair a **Supabase Postgres** database (free tier) with Render (Python web service) and Vercel (Vite UI). The build/deploy steps are:
+
+1. **Supabase:** provision the Postgres database.
+2. **Render:** host the Django API and point it at Supabase via `DATABASE_URL`.
+3. **Vercel:** build and rewrite `/api` to the Render service.
+
+### 1. Provision Supabase
+* Sign in to [Supabase](https://supabase.com/) and create a new project.
+* Grab the **Connection string** (starts with `postgres://`) from **Settings -> Database -> Connection string**.
+* Use this string for Render's `DATABASE_URL` and, when you test locally, for your shell (e.g., `set DATABASE_URL=postgres://...` before running `python manage.py migrate`).
+* Supabase already enforces SSL (`sslmode=require`), so no extra client config is needed.
+* Optional: save the Supabase service-role key if you want to access the database outside of Django (exports, analytics, etc.). The Django app only needs `DATABASE_URL`.
+
+### 2. Deploy backend to Render
+* Render already reads `render.yaml`. Update the service to keep installing dependencies, run migrations, and start Gunicorn:
+
+  ```yaml
+  services:
+    - type: web
+      name: warehouse-tracker-backend
+      runtime: python
+      buildCommand: "pip install . && pip install gunicorn django-cors-headers"
+      startCommand: "python manage.py migrate --noinput && gunicorn config.wsgi:application"
+      envVars:
+        - key: DATABASE_URL
+          value: "<YOUR_SUPABASE_CONNECTION_STRING>"
+        - key: SECRET_KEY
+          generateValue: true
+        - key: DEBUG
+          value: "False"
+        - key: ALLOWED_HOSTS
+          value: "warehouse-tracker-backend.onrender.com,<your-vercel-domain>"
+        - key: CSRF_TRUSTED_ORIGINS
+          value: "https://<your-vercel-domain>"
+        - key: CORS_ALLOWED_ORIGINS
+          value: "https://<your-vercel-domain>"
+        - key: REPOSITORY_BACKEND
+          value: "db"
+  ```
+
+  > With this start command, Render will automatically apply the migrations before launching Gunicorn, and `REPOSITORY_BACKEND=db` forces the new ORM-backed repository instead of the JSON fallback.
+
+* Add the Vercel domain to `ALLOWED_HOSTS` and both `CSRF_TRUSTED_ORIGINS`/`CORS_ALLOWED_ORIGINS` so the frontend can talk to the API.
+* During local development, run `scripts/deploy_frontend.ps1` to rebuild the Vite bundle and `scripts/deploy_backend.ps1` (or `python manage.py migrate` + `collectstatic`) before running the server.
+
+### 3. Point Vercel at Render
+* Keep the `Warehouseloadingboardui-main/vercel.json` rewrite in place so `/api/*` requests hit the Render service.
+* Configure any Vercel environment variables the UI needs (e.g., `VITE_API_BASE_URL` if you add one later).
+* Deploy the frontend so the Django template can serve `dist/index.html` and `dist/assets`.
+
+### 4. Local development notes
+* The JSON repository still exists for quick local runs, so set `REPOSITORY_BACKEND=json` if you prefer not to depend on Supabase.
+* To test against Supabase locally, `export DATABASE_URL` and `export REPOSITORY_BACKEND=db` before hitting `python manage.py runserver`.
+* Supabase migrations are handled by `python manage.py migrate`; your Render service (or the `startCommand` above) runs it automatically, but you can also execute migrations manually on Render via the shell.
+
+This composable approach keeps the stack within the free tiers - Supabase for storage, Render for the Python API, and Vercel for the UX - while leaving the old file-backed repo active until you explicitly switch to Postgres for testing.
+
 ---
 
 ## Backend CORS Configuration (Django)

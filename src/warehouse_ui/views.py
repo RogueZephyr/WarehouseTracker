@@ -1,5 +1,7 @@
 import json
 import os
+
+from django.conf import settings
 from django.views.generic import TemplateView
 from django.http import JsonResponse
 from django.views import View
@@ -7,12 +9,17 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from dataclasses import asdict
 
-from src.infrastructure.json_repository import JsonRepository
 from src.domain.models import LoadRecord, LoadFormat, LoadStatus, VerificationStatus
+from src.infrastructure.json_repository import JsonRepository
+from src.infrastructure.orm_repository import OrmRepository
 
 # Initialize Repository
 REPO_PATH = os.path.join("data", "loads.json")
-repo = JsonRepository(REPO_PATH)
+USE_JSON_REPO = (
+    settings.REPOSITORY_BACKEND == "json"
+    or (settings.REPOSITORY_BACKEND == "auto" and settings.DEBUG)
+)
+repo = JsonRepository(REPO_PATH) if USE_JSON_REPO else OrmRepository()
 
 
 def serialize_load(load: LoadRecord):
@@ -37,7 +44,7 @@ class IndexView(TemplateView):
 @method_decorator(csrf_exempt, name="dispatch")
 class LoadListCreateView(View):
     def get(self, request):
-        loads = repo._load_all()
+        loads = repo.list_all()
         data = [serialize_load(l) for l in loads]
         return JsonResponse(data, safe=False)
 
