@@ -17,7 +17,19 @@ export interface Load {
   palletCount?: number; // Only for Large
   missingIds: string[];
   status: LoadStatus;
+  isNA: boolean;
+  isFND: boolean;
   createdAt: Date;
+  groupId?: string; // Optional parent group
+}
+
+export interface LoadGroup {
+  id: string;
+  vehicleId: string;
+  maxPalletCount: number;
+  status: LoadStatus;
+  createdAt: Date;
+  loads?: Load[]; // Optional children for detail view
 }
 
 export interface FilterState {

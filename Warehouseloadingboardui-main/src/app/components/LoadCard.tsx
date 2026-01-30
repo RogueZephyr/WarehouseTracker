@@ -1,5 +1,6 @@
 import React from 'react';
-import { Load } from '../types';
+import { Load, LoadStatus } from '../types';
+import { getMissingCount } from '../App';
 import { StatusBadge } from './StatusBadge';
 import { ProgressBar } from './ProgressBar';
 import { Plus, AlertTriangle, ArrowUpDown, MoreHorizontal } from 'lucide-react';
@@ -12,6 +13,7 @@ interface LoadCardProps {
   onMissing: (e: React.MouseEvent) => void;
   onChangeOrder?: (e: React.MouseEvent) => void;
   onMore?: (e: React.MouseEvent) => void;
+  onStatusChange?: (status: LoadStatus) => void;
 }
 
 export const LoadCard: React.FC<LoadCardProps> = ({
@@ -21,6 +23,7 @@ export const LoadCard: React.FC<LoadCardProps> = ({
   onMissing,
   onChangeOrder,
   onMore,
+  onStatusChange,
 }) => {
   return (
     <div
@@ -40,9 +43,38 @@ export const LoadCard: React.FC<LoadCardProps> = ({
             <span className="font-medium">{load.clientName}</span>
             <span className="text-gray-400">•</span>
             <span className="text-gray-500 text-xs uppercase tracking-wider">{load.format}</span>
+            {load.isNA && <span className="bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded text-[8px] font-bold border border-gray-200 uppercase">N/A</span>}
+            {load.isFND && <span className="bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded text-[8px] font-bold border border-amber-200 uppercase">FND</span>}
           </div>
         </div>
-        <StatusBadge status={load.status} />
+        {onStatusChange ? (
+          <select
+            value={load.status}
+            onChange={(e) => {
+              e.stopPropagation();
+              onStatusChange(e.target.value as LoadStatus);
+            }}
+            onClick={(e) => e.stopPropagation()}
+            className={clsx(
+              "text-[10px] font-bold uppercase py-0.5 px-2 rounded border focus:ring-1 outline-none appearance-none cursor-pointer",
+              load.status === 'Complete' ? "bg-green-50 text-green-700 border-green-200" :
+                load.status === 'Pending' ? "bg-gray-50 text-gray-700 border-gray-200" :
+                  "bg-blue-50 text-blue-700 border-blue-200"
+            )}
+          >
+            <option value="Pending">Pending</option>
+            <option value="In Process">In Process</option>
+            <option value="Complete">Complete</option>
+            {load.format === 'Large' && (
+              <>
+                <option value="Unverified">Unverified</option>
+                <option value="Verified">Verified</option>
+              </>
+            )}
+          </select>
+        ) : (
+          <StatusBadge status={load.status} />
+        )}
       </div>
 
       {/* Progress */}
@@ -50,7 +82,7 @@ export const LoadCard: React.FC<LoadCardProps> = ({
         <ProgressBar
           current={load.loadedQty}
           total={load.expectedQty}
-          missingCount={load.missingIds.length}
+          missingCount={getMissingCount(load.missingIds)}
         />
       </div>
 

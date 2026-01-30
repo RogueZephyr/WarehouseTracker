@@ -78,6 +78,7 @@ try {
     }
 
     Write-Host "[setup] Running Django migrations"
+    & $pythonPath manage.py makemigrations warehouse_ui --noinput
     & $pythonPath manage.py migrate --noinput
 
     Write-Host "[setup] Collecting static assets (expect frontend build to exist)"

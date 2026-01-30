@@ -23,6 +23,23 @@ class VerificationStatus(str, Enum):
 
 
 @dataclass
+class LoadGroup:
+    """
+    Represents a group of Large Format loads for a specific vehicle.
+    """
+
+    vehicle_id: str
+    max_pallet_count: int
+    id: str = field(default_factory=lambda: str(uuid.uuid4()))
+    status: LoadStatus = LoadStatus.PENDING
+    created_at: str = field(default_factory=lambda: datetime.now().isoformat())
+    updated_at: str = field(default_factory=lambda: datetime.now().isoformat())
+
+    def touch(self):
+        self.updated_at = datetime.now().isoformat()
+
+
+@dataclass
 class LoadRecord:
     """
     Canonical data model for a Load.
@@ -46,9 +63,12 @@ class LoadRecord:
     loaded_qty: int = 0
     missing_qty: int = 0
     missing_refs: List[str] = field(default_factory=list)
+    is_na: bool = False
+    is_fnd: bool = False
 
     # Constraints / Assignments
     vehicle_id: Optional[str] = None
+    group_id: Optional[str] = None  # Link to LoadGroup
 
     # Small Format Specific
     route_code: Optional[str] = None

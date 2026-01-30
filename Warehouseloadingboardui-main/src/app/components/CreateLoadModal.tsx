@@ -11,20 +11,26 @@ interface CreateLoadModalProps {
 
 interface FormData {
   clientName: string;
-  format: LoadFormat;
+  format: LoadFormat | 'Group';
   routeCode: string;
   routeGroup?: string;
   vehicleId: string;
   loadOrder: LoadOrder;
   expectedQty: number;
   palletCount?: number;
+  maxPalletCount?: number;
 }
 
-export const CreateLoadModal: React.FC<CreateLoadModalProps> = ({ isOpen, onClose, onSubmit }) => {
+export const CreateLoadModal: React.FC<CreateLoadModalProps & { onCreateGroup: (data: any) => void }> = ({
+  isOpen,
+  onClose,
+  onSubmit,
+  onCreateGroup
+}) => {
   const { register, handleSubmit, watch, formState: { errors } } = useForm<FormData>({
     defaultValues: {
       format: 'Small',
-      loadOrder: 'F', // Default to F? Or just first one.
+      loadOrder: 'F',
     }
   });
 
@@ -34,11 +40,19 @@ export const CreateLoadModal: React.FC<CreateLoadModalProps> = ({ isOpen, onClos
   if (!isOpen) return null;
 
   const onFormSubmit = (data: FormData) => {
-    onSubmit({
-      ...data,
-      expectedQty: Number(data.expectedQty),
-      palletCount: data.palletCount ? Number(data.palletCount) : undefined,
-    });
+    if (data.format === 'Group') {
+      onCreateGroup({
+        vehicleId: data.vehicleId,
+        maxPalletCount: Number(data.maxPalletCount) || 0
+      });
+    } else {
+      onSubmit({
+        ...data,
+        format: data.format as LoadFormat,
+        expectedQty: Number(data.expectedQty),
+        palletCount: data.palletCount ? Number(data.palletCount) : undefined,
+      });
+    }
     onClose();
   };
 
@@ -48,10 +62,10 @@ export const CreateLoadModal: React.FC<CreateLoadModalProps> = ({ isOpen, onClos
     <div className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4">
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
       <div className="relative bg-white w-full h-full sm:h-auto sm:max-w-lg sm:rounded-xl shadow-xl flex flex-col max-h-[90vh]">
-        
+
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-          <h2 className="text-xl font-bold text-gray-900">Create New Load</h2>
+          <h2 className="text-xl font-bold text-gray-900">Create New {format === 'Group' ? 'Group' : 'Load'}</h2>
           <button onClick={onClose} className="p-2 -mr-2 text-gray-500 hover:bg-gray-100 rounded-full">
             <X className="w-6 h-6" />
           </button>
@@ -60,52 +74,26 @@ export const CreateLoadModal: React.FC<CreateLoadModalProps> = ({ isOpen, onClos
         {/* Scrollable Form Content */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
           <form id="create-load-form" onSubmit={handleSubmit(onFormSubmit)} className="space-y-6">
-            
-            {/* Section 1: Basic Info */}
-            <div className="space-y-4">
-              <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wider">Client Info</h3>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Client Name</label>
-                <input
-                  {...register('clientName', { required: 'Client name is required' })}
-                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
-                  placeholder="e.g. Walgreens"
-                />
-                {errors.clientName && <p className="mt-1 text-sm text-red-600">{errors.clientName.message}</p>}
-              </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Format</label>
-                  <select
-                    {...register('format')}
-                    className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none bg-white"
-                  >
-                    <option value="Small">Small</option>
-                    <option value="Large">Large</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Load Order</label>
-                  <select
-                    {...register('loadOrder')}
-                    className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none bg-white"
-                  >
-                    <option value="F">F</option>
-                    <option value="MF">MF</option>
-                    <option value="M">M</option>
-                    <option value="MP">MP</option>
-                    <option value="P">P</option>
-                  </select>
-                </div>
+            {/* Section 1: Type Selection */}
+            <div className="space-y-4">
+              <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wider">Load Type</h3>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Format / Type</label>
+                <select
+                  {...register('format')}
+                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none bg-white font-bold"
+                >
+                  <option value="Small">Small Format (Standalone)</option>
+                  <option value="Large">Large Format (Standalone)</option>
+                  <option value="Group">Large Format Group (Multi-Client)</option>
+                </select>
               </div>
             </div>
 
-            {/* Section 2: Route & Vehicle */}
+            {/* Section 2: Vehicle & ID */}
             <div className="space-y-4 pt-4 border-t border-gray-100">
-              <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wider">Route & Vehicle</h3>
-              
+              <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wider">Identification</h3>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Vehicle ID</label>
@@ -116,47 +104,71 @@ export const CreateLoadModal: React.FC<CreateLoadModalProps> = ({ isOpen, onClos
                   />
                   {errors.vehicleId && <p className="mt-1 text-sm text-red-600">{errors.vehicleId.message}</p>}
                 </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Route Code</label>
-                  <input
-                    {...register('routeCode', { required: format === 'Small' ? 'Route code required for Small format' : false })}
-                    className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none"
-                    placeholder="e.g. 23-W1"
-                  />
-                  {errors.routeCode && <p className="mt-1 text-sm text-red-600">{errors.routeCode.message}</p>}
-                </div>
+                {format !== 'Group' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Route Code</label>
+                    <input
+                      {...register('routeCode', { required: format === 'Small' ? 'Route code required' : false })}
+                      className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none"
+                      placeholder="e.g. 23-W1"
+                    />
+                    {errors.routeCode && <p className="mt-1 text-sm text-red-600">{errors.routeCode.message}</p>}
+                  </div>
+                )}
               </div>
-
-              {isWalgreens && (
-                <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
-                  <label className="block text-sm font-medium text-blue-900 mb-1">Route Group (Walgreens)</label>
-                  <input
-                    {...register('routeGroup')}
-                    className="w-full px-4 py-2 rounded border border-blue-200 focus:ring-2 focus:ring-blue-500 outline-none"
-                    placeholder="e.g. W1"
-                  />
-                  <p className="mt-2 text-xs text-blue-700">
-                    Use the same group as other active Walgreens loads
-                  </p>
-                </div>
-              )}
             </div>
 
-            {/* Section 3: Quantities */}
-            <div className="space-y-4 pt-4 border-t border-gray-100">
-              <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wider">Quantities</h3>
-              
-              <div className="grid grid-cols-2 gap-4">
+            {/* Section 3: Details */}
+            {format === 'Group' ? (
+              <div className="space-y-4 pt-4 border-t border-gray-100">
+                <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wider">Group Constraints</h3>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Expected Qty</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Max Pallet Count</label>
                   <input
                     type="number"
-                    {...register('expectedQty', { required: 'Required', min: 1 })}
-                    className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none"
-                    placeholder="0"
+                    {...register('maxPalletCount', { required: 'Required', min: 1 })}
+                    className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none font-black text-blue-700"
+                    placeholder="e.g. 10"
                   />
-                  {errors.expectedQty && <p className="mt-1 text-sm text-red-600">{errors.expectedQty.message}</p>}
+                  <p className="mt-2 text-xs text-gray-500 italic">You will add client loads after creating the group.</p>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-6 pt-4 border-t border-gray-100">
+                <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wider">Load Details</h3>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Client Name</label>
+                  <input
+                    {...register('clientName', { required: (format as any) !== 'Group' })}
+                    className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none"
+                    placeholder="e.g. Walgreens"
+                  />
+                  {errors.clientName && <p className="mt-1 text-sm text-red-600">{errors.clientName.message}</p>}
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Expected Qty</label>
+                    <input
+                      type="number"
+                      {...register('expectedQty', { required: true, min: 1 })}
+                      className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Load Order</label>
+                    <select
+                      {...register('loadOrder')}
+                      className="w-full px-4 py-3 rounded-lg border border-gray-300 bg-white outline-none"
+                    >
+                      <option value="F">F</option>
+                      <option value="MF">MF</option>
+                      <option value="M">M</option>
+                      <option value="MP">MP</option>
+                      <option value="P">P</option>
+                    </select>
+                  </div>
                 </div>
 
                 {format === 'Large' && (
@@ -164,15 +176,13 @@ export const CreateLoadModal: React.FC<CreateLoadModalProps> = ({ isOpen, onClos
                     <label className="block text-sm font-medium text-gray-700 mb-1">Pallet Count</label>
                     <input
                       type="number"
-                      {...register('palletCount', { required: 'Required for Large format', min: 1 })}
-                      className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none"
-                      placeholder="0"
+                      {...register('palletCount', { required: true, min: 1 })}
+                      className="w-full px-4 py-3 rounded-lg border border-gray-300 outline-none"
                     />
-                    {errors.palletCount && <p className="mt-1 text-sm text-red-600">{errors.palletCount.message}</p>}
                   </div>
                 )}
               </div>
-            </div>
+            )}
 
           </form>
         </div>

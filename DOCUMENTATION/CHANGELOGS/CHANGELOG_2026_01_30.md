@@ -1,21 +1,38 @@
-# Changelog - 2026-01-30
+# Changelog - 2026-01-30 (v2)
 
-## Summary of Changes
+## [2.0.0] - 2026-01-30
 
-### Python Tooling & Environment
-- **Environment Setup**: Configured `pyproject.toml` with an `all` extra for easy installation of all required development and QA tools (`pip install -e .[all]`).
-- **Git Ignoring**: Standardized `.gitignore` to exclude `build/`, `.venv`, and `staticfiles` across all subdirectories.
+### Enhanced Loading Logistics & Mobile Optimization
 
-### CI/CD Infrastructure
-- **CI Definition**: Added a GitHub Actions workflow (`.github/workflows/ci.yml`) to automate dependency installation and testing on every push.
-- **Pytest Configuration**: Configured pytest to use a local `build/` directory for temporary files, ensuring compatibility with restricted CI environments.
-- **Render Sync**: Updated `render.yaml` to ensure build and start commands are consistent between local, CI, and production environments.
+This release focuses on improving the accuracy of missing items tracking, introducing contextual status badges (N/A & FND), and ensuring a premium, responsive experience across all devices.
 
-### Deployment Scripts
-- **Compatibility**: Added PowerShell 5.1 compatibility to `deploy_backend.ps1` and `deploy_frontend.ps1` (handling the absence of `$IsWindows` in older PowerShell versions).
-- **Bug Fixes**: Resolved an issue in `deploy_backend.ps1` where the `$Args` automatic variable was shadowing the `Invoke-Pip` function parameters.
+#### Added
+- **Logistics Badges**: Toggleable **N/A** (Not Available) and **FND** (Facturado no despachado) markers for loads, aiding in complex inventory tracking.
+- **Mobile Card View**: Responsive shift in `LoadGroupDetailModal` that replaces technical tables with touch-friendly cards on small screens.
+- **Horizontal Stats Scroll**: Support for horizontal scrolling in the group header to ensure stats remain accessible on narrow devices.
 
-### Local Development Experience
-- **Vite Proxy**: Configured a proxy server in `vite.config.ts` to allow the frontend dev server (`npm run dev`) to seamlessly communicate with the Django backend.
-- **Sample Data**: Seeded `data/loads.json` with initial mock loads to provide immediate functionality for testing.
-- **Documentation**: Created and organized local testing and development documentation.
+#### Changed
+- **Missing Items Split**: Separated **Quantity** and **ID/Name** inputs for missing items in `LoadDetailModal`.
+- **Accurate Quantity Parsing**: Implemented logic to parse and sum units from format-rich strings (e.g., "4x Item" now correctly counts as 4 units).
+- **Badge Contextualization**: Relocated N/A and FND toggles to the **Missing Items** section to clarify their relationship to logistics discrepancies.
+- **Touch Targets**: Increased padding and size for buttons and inputs across all modals for better mobile usability.
+- **Improved Auto-Fill**: Marking a load as "Complete" now uses the accurately parsed missing total to calculate `Loaded Qty`.
+
+#### Fixed
+- **Missing Items Count**: Resolved issue where the system only counted the number of missing entries instead of the total quantity of items per entry.
+- **Layout Overlaps**: Fixed text and button overlap issues on very narrow mobile screens.
+
+---
+
+### Commit Message Preview
+
+```text
+feat: warehouse tracking refinements v2
+
+- Implement quantity parsing for missing items (e.g., "4x Item" = 4)
+- Add N/A and FND badges with dedicated toggles in Missing Items section
+- Implement responsive mobile card view for group client lists
+- Optimize touch targets and layouts for mobile responsiveness
+- Update auto-fill logic to use parsed missing totals
+- Enhance backend persistence for new N/A and FND states
+```

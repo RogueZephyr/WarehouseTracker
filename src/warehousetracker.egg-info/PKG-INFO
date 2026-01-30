@@ -44,47 +44,114 @@ Requires-Dist: isort>=5.12; extra == "all"
 Requires-Dist: pre-commit>=2.20; extra == "all"
 Requires-Dist: httpx>=0.24; extra == "all"
 
-# Warehouse Loading Tracker
+# ==============================================================================
+# WAREHOUSE LOADING TRACKER
+# ==============================================================================
 
-A simple web app to track warehouse loading operations. The goal is to give loaders and supervisors a clear, shared view of what is loaded, in-progress, or missing so teams can coordinate faster and reduce errors.
+A modern warehouse management dashboard designed to coordinate loading 
+operations between dock crews and supervisors. This application provides a 
+real-time, shared view of shipment statuses to minimize loading errors and 
+streamline vehicle departures.
 
-## Purpose
+--------------------------------------------------------------------------------
+-- CURRENT FEATURES                                                           --
+--------------------------------------------------------------------------------
 
-Keep a concise, real-time board of loading activity so teams can see shipment progress at a glance and act on missing items quickly.
+1. REAL-TIME BOARD
+   - Three-column Kanban-style layout: Pending, In Process, and Complete.
+   - Live updates to shipment quantities and status transitions.
+   - Quick-increment buttons for rapid loading entry.
 
-## Basic outline / Features
+2. DUAL-FORMAT SUPPORT
+   - SMALL FORMAT: Optimized for route-based loading with route groups.
+   - LARGE FORMAT: Optimized for bulk loading with pallet counts and 
+     verification statuses.
 
-- Track shipments being loaded onto vehicles.
-- Record expected vs. loaded quantities and any missing/unavailable items.
-- Identify the delivery vehicle for each shipment.
-- Set and update load status (pending, in-process, complete).
-- Simple, fast CRUD workflows: create, view, update, and remove load entries.
+3. ROBUST BACKEND ENGINE
+   - Django implementation providing a RESTful API for all CRUD operations.
+   - Hybrid data persistence: Supports both lightweight JSON storage for 
+     prototyping and PostgreSQL/SQLite ORM for production stability.
 
-## Core data per load
+4. AUTOMATED DEPLOYMENT & CI
+   - Cross-platform PowerShell deployment scripts (5.1 and Core supported).
+   - GitHub Actions CI/CD pipeline for automated testing and validation.
+   - Render-ready configuration (render.yaml) for cloud orchestration.
 
-- Shipment identifier: route code or client name (e.g., PR2301, ACME Co.)
-- Quantity: expected / loaded (e.g., 75/75 or 60/63)
-- Delivery vehicle ID: truck or van identifier
-- Missing/unavailable quantity: count of items not available
-- Status: `pending`, `in-process`, `complete`
+--------------------------------------------------------------------------------
+-- SYSTEM REQUIREMENTS                                                        --
+--------------------------------------------------------------------------------
 
-## Getting started
+- Python: 3.11 or higher
+- Node.js: 18.x or higher
+- PowerShell: 5.1 or Core (for automated setup)
 
-This project is intentionally minimal, but the recommended MVP approach is a Django monolith (server-rendered HTML) to maximize development speed and reduce complexity while you learn. Suggested local steps for implementers:
+--------------------------------------------------------------------------------
+-- QUICK START (AUTOMATED)                                                    --
+--------------------------------------------------------------------------------
 
-- Create a project folder and a Python virtual environment (if using Python).
-- Implement a small backend to store and validate the load entries (SQLite for the MVP or simple JSON for a quick prototype).
-- Build a lightweight server-rendered web UI (Django Templates) that displays the board and allows quick updates.
-- See `Project_Overview.md` for goals, constraints, and design considerations.
+The easiest way to get started on Windows is to run the deployment scripts 
+located in the scripts/ directory.
 
-## Contributing
+1. Prepare the Backend:
+   $ .\scripts\deploy_backend.ps1
 
-Keep changes small and focused. Prioritize correctness and clarity over visual polish. Good first improvements:
+2. Prepare the Frontend:
+   $ .\scripts\deploy_frontend.ps1
 
-- Add simple persistence (SQLite) and a minimal API for CRUD operations.
-- Add basic validation for quantities and status transitions.
-- Improve the UI for readability and low-typing workflows.
+--------------------------------------------------------------------------------
+-- MANUAL SETUP                                                               --
+--------------------------------------------------------------------------------
 
-## Notes
+IF YOU PREFER MANUAL INSTALLATION, FOLLOW THESE STEPS:
 
-This repository is intended as a learning project and foundation. Future expansions may include authentication, an activity log, filters by shift/date, and export options.
+1. VIRTUAL ENVIRONMENT & BACKEND DEPS:
+   $ python -m venv .venv
+   $ .\.venv\Scripts\activate
+   $ pip install -e .[all]
+   $ pip install -r requirements-dev.txt
+
+2. DATABASE INITIALIZATION:
+   $ python manage.py migrate
+
+3. FRONTEND INSTALLATION:
+   $ cd Warehouseloadingboardui-main
+   $ npm install
+   $ npm run build
+
+--------------------------------------------------------------------------------
+-- RUNNING LOCALLY                                                            --
+--------------------------------------------------------------------------------
+
+1. PRODUCTION MODE (Django serves both API and Frontend)
+   $ python manage.py runserver
+   => Open: http://localhost:8000
+
+2. DEVELOPMENT MODE (HMR enabled for Frontend)
+   $ # Terminal 1:
+   $ python manage.py runserver
+   $ # Terminal 2:
+   $ cd Warehouseloadingboardui-main
+   $ npm run dev
+   => Open: http://localhost:5173
+
+--------------------------------------------------------------------------------
+-- REPOSITORY STRUCTURE                                                        --
+--------------------------------------------------------------------------------
+
+- /config        : Django project settings and URL configuration.
+- /data          : Default storage for JSON persistence (loads.json).
+- /scripts       : PowerShell automation for deployment and maintenance.
+- /src           : Core application logic (Domain, Application, Infrastructure).
+- /tests         : Automation and QA test suites.
+- /Warehouseloadingboardui-main : React source code and Vite configuration.
+
+--------------------------------------------------------------------------------
+-- DOCUMENTATION                                                              --
+--------------------------------------------------------------------------------
+
+Detailed technical documentation and guides can be found in the 
+DOCUMENTATION/ directory.
+- DOCUMENTATION/CHANGELOGS : Historical record of all significant updates.
+- DOCUMENTATION/Markdown   : Technical guides and testing instructions.
+
+==============================================================================

@@ -7,6 +7,7 @@ from src.application.interfaces import Repository
 from src.domain.models import (
     LoadFormat,
     LoadRecord,
+    LoadGroup,
     LoadStatus,
     VerificationStatus,
 )
@@ -77,6 +78,21 @@ class OrmRepository(Repository):
 
     def list_all(self) -> List[LoadRecord]:
         return [self._to_record(instance) for instance in self._model.objects.all()]
+
+    def get_group(self, group_id: str) -> Optional[LoadGroup]:
+        return None
+
+    def save_group(self, group: LoadGroup) -> None:
+        pass
+
+    def list_all_groups(self) -> List[LoadGroup]:
+        return []
+
+    def delete_group(self, group_id: str) -> bool:
+        return False
+
+    def list_loads_by_group(self, group_id: str) -> List[LoadRecord]:
+        return []
 
     def _to_record(self, instance: LoadModel) -> LoadRecord:
         verification_value = (

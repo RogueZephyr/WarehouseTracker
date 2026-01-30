@@ -2,10 +2,12 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Header } from './components/Header';
 import { BottomNav } from './components/BottomNav';
 import { LoadCard } from './components/LoadCard';
+import { GroupCard } from './components/GroupCard';
 import { CreateLoadModal } from './components/CreateLoadModal';
 import { LoadDetailModal } from './components/LoadDetailModal';
+import { LoadGroupDetailModal } from './components/LoadGroupDetailModal';
 import { FilterModal } from './components/FilterModal';
-import { Load, FilterState, LoadStatus, LoadFormat } from './types';
+import { Load, LoadGroup, FilterState, LoadStatus, LoadFormat } from './types';
 import { Plus, ChevronDown, ChevronRight, RefreshCw } from 'lucide-react';
 import { clsx } from 'clsx';
 import { toast, Toaster } from 'sonner';
@@ -13,6 +15,8 @@ import { toast, Toaster } from 'sonner';
 // --- Mappers ---
 
 const toFrontend = (data: any): Load => {
+  if (!data) throw new Error('toFrontend: No data provided');
+
   // Map status Title Case
   const statusMap: Record<string, LoadStatus> = {
     'pending': 'Pending',
@@ -36,19 +40,22 @@ const toFrontend = (data: any): Load => {
   };
 
   return {
-    id: data.id,
+    id: data.id || `unknown-${Math.random().toString(36).substr(2, 9)}`,
     vehicleId: data.vehicle_id || 'Unknown',
-    loadOrder: data.load_order, // 'F', 'MF' etc match
-    clientName: data.client_name,
+    loadOrder: data.load_order || 'F',
+    clientName: data.client_name || 'Generic Client',
     format: formatMap[data.format] || 'Small',
     routeCode: data.route_code,
-    routeGroup: data.route_group_id, // assuming mapping
-    expectedQty: data.expected_qty,
-    loadedQty: data.loaded_qty || 0,
-    palletCount: data.pallet_count,
-    missingIds: data.missing_refs || [],
+    routeGroup: data.route_group_id,
+    expectedQty: Number(data.expected_qty) || 0,
+    loadedQty: Number(data.loaded_qty) || 0,
+    palletCount: data.pallet_count ? Number(data.pallet_count) : undefined,
+    missingIds: Array.isArray(data.missing_refs) ? data.missing_refs : [],
     status: statusMap[data.status] || 'Pending',
-    createdAt: new Date(data.created_at)
+    isNA: !!data.is_na,
+    isFND: !!data.is_fnd,
+    createdAt: data.created_at ? new Date(data.created_at) : new Date(),
+    groupId: data.group_id
   };
 };
 
@@ -58,7 +65,7 @@ const toBackend = (load: Partial<Load>): any => {
     'In Process': 'in_process',
     'Complete': 'complete',
     'Verified': 'verified',
-    'Unverified': 'unverified'
+    'unverified': 'unverified'
   };
   const formatMap: Record<string, string> = {
     'Small': 'small',
@@ -77,6 +84,9 @@ const toBackend = (load: Partial<Load>): any => {
     status: load.status ? statusMap[load.status] : undefined,
     loaded_qty: load.loadedQty !== undefined ? Number(load.loadedQty) : undefined,
     missing_refs: load.missingIds || [],
+    is_na: load.isNA,
+    is_fnd: load.isFND,
+    group_id: load.groupId,
   };
 
   // Remove undefined fields to avoid sending null values
@@ -89,9 +99,59 @@ const toBackend = (load: Partial<Load>): any => {
   return payload;
 };
 
+export const getMissingCount = (missingIds: string[]): number => {
+  if (!missingIds || !Array.isArray(missingIds)) return 0;
+  return missingIds.reduce((acc, id) => {
+    // Match "4x Item" or similar
+    const match = id.match(/^(\d+)x/);
+    if (match) {
+      return acc + parseInt(match[1], 10);
+    }
+    return acc + 1;
+  }, 0);
+};
+
+const toFrontendGroup = (data: any): LoadGroup => {
+  if (!data) throw new Error('toFrontendGroup: No data provided');
+
+  const statusMap: Record<string, LoadStatus> = {
+    'pending': 'Pending',
+    'in_process': 'In Process',
+    'complete': 'Complete',
+    'Pending': 'Pending',
+    'In Process': 'In Process',
+    'Complete': 'Complete',
+  };
+
+  return {
+    id: data.id || `unknown-group-${Math.random().toString(36).substr(2, 9)}`,
+    vehicleId: data.vehicle_id || 'Unknown',
+    maxPalletCount: Number(data.max_pallet_count) || 0,
+    status: statusMap[data.status] || 'Pending',
+    createdAt: data.created_at ? new Date(data.created_at) : new Date(),
+    loads: Array.isArray(data.loads) ? data.loads.map((l: any) => {
+      try {
+        return toFrontend(l);
+      } catch (e) {
+        console.error('Error mapping load in group:', l, e);
+        return null;
+      }
+    }).filter((l: any): l is Load => l !== null) : []
+  };
+};
+
+const toBackendGroup = (group: Partial<LoadGroup>): any => {
+  return {
+    vehicle_id: group.vehicleId,
+    max_pallet_count: group.maxPalletCount,
+    status: group.status ? group.status.toLowerCase().replace(' ', '_') : undefined
+  };
+};
+
 
 export default function App() {
   const [loads, setLoads] = useState<Load[]>([]);
+  const [groups, setGroups] = useState<LoadGroup[]>([]);
   const [filters, setFilters] = useState<FilterState>({
     format: 'All',
     vehicleGroup: 'All',
@@ -102,6 +162,7 @@ export default function App() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [selectedLoad, setSelectedLoad] = useState<Load | null>(null);
+  const [selectedGroup, setSelectedGroup] = useState<LoadGroup | null>(null);
 
   // Section Collapse State (Mobile)
   const [isCompleteCollapsed, setIsCompleteCollapsed] = useState(true);
@@ -109,19 +170,44 @@ export default function App() {
   // --- API ---
   const fetchLoads = async () => {
     try {
-      const res = await fetch('/api/loads/');
-      if (!res.ok) throw new Error('Failed to fetch');
-      const data = await res.json();
-      setLoads(data.map(toFrontend));
+      const [loadsRes, groupsRes] = await Promise.all([
+        fetch('/api/loads/'),
+        fetch('/api/groups/')
+      ]);
+
+      if (!loadsRes.ok || !groupsRes.ok) throw new Error('Failed to fetch');
+
+      const loadsData = await loadsRes.json();
+      const groupsData = await groupsRes.json();
+
+      const allLoads = loadsData.map(toFrontend);
+      setLoads(allLoads.filter((l: Load) => !l.groupId));
+      setGroups(groupsData.map(toFrontendGroup));
+
+      // Sync selected items if they are currently being viewed
+      if (selectedGroup) {
+        // Re-fetch detail for selected group since list view doesn't have loads
+        const detailRes = await fetch(`/api/groups/${selectedGroup.id}/`);
+        if (detailRes.ok) {
+          const detailData = await detailRes.json();
+          setSelectedGroup(toFrontendGroup(detailData));
+        }
+      }
+      if (selectedLoad) {
+        const updated = allLoads.find((l: Load) => l.id === selectedLoad.id);
+        if (updated) setSelectedLoad(updated);
+      }
     } catch (err) {
       console.error(err);
-      toast.error('Could not load data');
+      // Don't toast on background polling errors to avoid spamming the user
     }
   };
 
   useEffect(() => {
     fetchLoads();
-  }, []);
+    const interval = setInterval(fetchLoads, 5000);
+    return () => clearInterval(interval);
+  }, [selectedGroup?.id, selectedLoad?.id]);
 
   // Derived State
   const filteredLoads = useMemo(() => {
@@ -145,11 +231,20 @@ export default function App() {
 
   const sections = useMemo(() => {
     return {
-      pending: filteredLoads.filter(l => l.status === 'Pending'),
-      inProcess: filteredLoads.filter(l => ['In Process', 'Verified', 'Unverified'].includes(l.status)),
-      complete: filteredLoads.filter(l => l.status === 'Complete'),
+      pending: [
+        ...filteredLoads.filter(l => l.status === 'Pending'),
+        ...groups.filter(g => g.status === 'Pending')
+      ],
+      inProcess: [
+        ...filteredLoads.filter(l => ['In Process', 'Verified', 'Unverified'].includes(l.status)),
+        ...groups.filter(g => ['In Process'].includes(g.status))
+      ],
+      complete: [
+        ...filteredLoads.filter(l => l.status === 'Complete'),
+        ...groups.filter(g => g.status === 'Complete')
+      ],
     };
-  }, [filteredLoads]);
+  }, [filteredLoads, groups]);
 
   // Handlers
   const handleCreateLoad = async (newLoadData: any) => {
@@ -207,6 +302,14 @@ export default function App() {
     }
   };
 
+  const handleStandaloneStatusChange = (load: Load, newStatus: LoadStatus) => {
+    let loadedQty = load.loadedQty;
+    if (newStatus === 'Complete') {
+      loadedQty = Math.max(0, (Number(load.expectedQty) || 0) - (load.missingIds?.length || 0));
+    }
+    handleUpdateLoad({ ...load, status: newStatus, loadedQty });
+  };
+
   const handleDeleteLoad = async (id: string) => {
     const originalLoads = [...loads];
     setLoads(prev => prev.filter(l => l.id !== id));
@@ -236,6 +339,95 @@ export default function App() {
   const handleSetMissing = (e: React.MouseEvent, load: Load) => {
     e.stopPropagation();
     setSelectedLoad(load);
+  };
+
+  const handleViewGroup = async (group: LoadGroup) => {
+    if (!group || !group.id) {
+      console.error('handleViewGroup: Invalid group provided', group);
+      toast.error('Invalid group data');
+      return;
+    }
+
+    try {
+      console.log('Fetching detail for group:', group.id);
+      const res = await fetch(`/api/groups/${group.id}/`);
+      if (!res.ok) throw new Error(`Failed to fetch group details (Status: ${res.status})`);
+
+      const data = await res.json();
+      console.log('Group detail raw data:', data);
+
+      const frontendGroup = toFrontendGroup(data);
+      console.log('Mapped Frontend Group:', frontendGroup);
+
+      setSelectedGroup(frontendGroup);
+    } catch (err) {
+      console.error('handleViewGroup Error:', err);
+      toast.error('Could not load group details');
+    }
+  };
+
+  const handleCreateGroup = async (groupData: any) => {
+    try {
+      const res = await fetch('/api/groups/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(toBackendGroup(groupData))
+      });
+      if (!res.ok) throw new Error('Failed to create group');
+      fetchLoads();
+      toast.success('Group created successfully');
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to create group');
+    }
+  };
+
+  const handleUpdateGroup = async (group: LoadGroup) => {
+    try {
+      const res = await fetch(`/api/groups/${group.id}/`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(toBackendGroup(group))
+      });
+      if (!res.ok) throw new Error('Failed to update group');
+      fetchLoads();
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to update group');
+    }
+  };
+
+  const handleDeleteGroup = async (id: string) => {
+    try {
+      const res = await fetch(`/api/groups/${id}/`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Failed to delete group');
+      setSelectedGroup(null);
+      fetchLoads();
+      toast.success('Group deleted');
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to delete group');
+    }
+  };
+
+  const handleAddClientLoad = async (loadData: any) => {
+    try {
+      const payload = toBackend(loadData);
+      const res = await fetch('/api/loads/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (!res.ok) throw new Error('Failed to add client load');
+
+      // Refresh current group
+      if (selectedGroup) handleViewGroup(selectedGroup);
+      fetchLoads();
+      toast.success('Client load added');
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to add client load');
+    }
   };
 
   const handleRefresh = () => {
@@ -287,15 +479,24 @@ export default function App() {
                 </h2>
               </div>
               <div className="space-y-3">
-                {sections.pending.map(load => (
-                  <LoadCard
-                    key={load.id}
-                    load={load}
-                    onClick={() => setSelectedLoad(load)}
-                    onIncrement={(e) => handleQuickIncrement(e, load)}
-                    onMissing={(e) => handleSetMissing(e, load)}
-                    onMore={(e) => { e.stopPropagation(); setSelectedLoad(load); }}
-                  />
+                {sections.pending.map(item => (
+                  'maxPalletCount' in item ? (
+                    <GroupCard
+                      key={item.id}
+                      group={item as LoadGroup}
+                      onClick={() => item && handleViewGroup(item as LoadGroup)}
+                    />
+                  ) : (
+                    <LoadCard
+                      key={item.id}
+                      load={item as Load}
+                      onClick={() => setSelectedLoad(item as Load)}
+                      onIncrement={(e) => handleQuickIncrement(e, item as Load)}
+                      onMissing={(e) => handleSetMissing(e, item as Load)}
+                      onMore={(e) => { e.stopPropagation(); setSelectedLoad(item as Load); }}
+                      onStatusChange={(status) => handleStandaloneStatusChange(item as Load, status)}
+                    />
+                  )
                 ))}
                 {sections.pending.length === 0 && (
                   <div className="text-center py-8 text-gray-400 text-sm border-2 border-dashed border-gray-200 rounded-lg">
@@ -315,15 +516,24 @@ export default function App() {
                 </h2>
               </div>
               <div className="space-y-3">
-                {sections.inProcess.map(load => (
-                  <LoadCard
-                    key={load.id}
-                    load={load}
-                    onClick={() => setSelectedLoad(load)}
-                    onIncrement={(e) => handleQuickIncrement(e, load)}
-                    onMissing={(e) => handleSetMissing(e, load)}
-                    onMore={(e) => { e.stopPropagation(); setSelectedLoad(load); }}
-                  />
+                {sections.inProcess.map(item => (
+                  'maxPalletCount' in item ? (
+                    <GroupCard
+                      key={item.id}
+                      group={item as LoadGroup}
+                      onClick={() => item && handleViewGroup(item as LoadGroup)}
+                    />
+                  ) : (
+                    <LoadCard
+                      key={item.id}
+                      load={item as Load}
+                      onClick={() => setSelectedLoad(item as Load)}
+                      onIncrement={(e) => handleQuickIncrement(e, item as Load)}
+                      onMissing={(e) => handleSetMissing(e, item as Load)}
+                      onMore={(e) => { e.stopPropagation(); setSelectedLoad(item as Load); }}
+                      onStatusChange={(status) => handleStandaloneStatusChange(item as Load, status)}
+                    />
+                  )
                 ))}
                 {sections.inProcess.length === 0 && (
                   <div className="text-center py-8 text-gray-400 text-sm border-2 border-dashed border-gray-200 rounded-lg">
@@ -350,15 +560,24 @@ export default function App() {
               </div>
 
               <div className={clsx("space-y-3", isCompleteCollapsed && "hidden md:block")}>
-                {sections.complete.map(load => (
-                  <LoadCard
-                    key={load.id}
-                    load={load}
-                    onClick={() => setSelectedLoad(load)}
-                    onIncrement={(e) => handleQuickIncrement(e, load)}
-                    onMissing={(e) => handleSetMissing(e, load)}
-                    onMore={(e) => { e.stopPropagation(); setSelectedLoad(load); }}
-                  />
+                {sections.complete.map(item => (
+                  'maxPalletCount' in item ? (
+                    <GroupCard
+                      key={item.id}
+                      group={item as LoadGroup}
+                      onClick={() => item && handleViewGroup(item as LoadGroup)}
+                    />
+                  ) : (
+                    <LoadCard
+                      key={item.id}
+                      load={item as Load}
+                      onClick={() => setSelectedLoad(item as Load)}
+                      onIncrement={(e) => handleQuickIncrement(e, item as Load)}
+                      onMissing={(e) => handleSetMissing(e, item as Load)}
+                      onMore={(e) => { e.stopPropagation(); setSelectedLoad(item as Load); }}
+                      onStatusChange={(status) => handleStandaloneStatusChange(item as Load, status)}
+                    />
+                  )
                 ))}
                 {sections.complete.length === 0 && (
                   <div className="text-center py-8 text-gray-400 text-sm border-2 border-dashed border-gray-200 rounded-lg">
@@ -382,6 +601,7 @@ export default function App() {
         isOpen={isCreateOpen}
         onClose={() => setIsCreateOpen(false)}
         onSubmit={handleCreateLoad}
+        onCreateGroup={handleCreateGroup}
       />
 
       <LoadDetailModal
@@ -391,12 +611,25 @@ export default function App() {
         onDelete={handleDeleteLoad}
       />
 
+      <LoadGroupDetailModal
+        group={selectedGroup}
+        onClose={() => setSelectedGroup(null)}
+        onUpdateGroup={handleUpdateGroup}
+        onDeleteGroup={handleDeleteGroup}
+        onAddLoad={handleAddClientLoad}
+        onUpdateLoad={handleUpdateLoad}
+        onDeleteLoad={handleDeleteLoad}
+        onInspectLoad={setSelectedLoad}
+      />
+
       <FilterModal
         isOpen={isFilterOpen}
         onClose={() => setIsFilterOpen(false)}
         filters={filters}
         onApply={setFilters}
       />
+
+      <Toaster position="top-right" richColors />
     </div>
   );
 }

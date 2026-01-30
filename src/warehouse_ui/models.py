@@ -3,16 +3,39 @@ import uuid
 from django.db import models
 
 
+class LoadStatusChoices(models.TextChoices):
+    PENDING = "pending", "Pending"
+    IN_PROCESS = "in_process", "In Process"
+    COMPLETE = "complete", "Complete"
+    HOLD = "hold", "Hold"
+
+
+class LoadGroup(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    vehicle_id = models.CharField(max_length=64)
+    max_pallet_count = models.PositiveIntegerField()
+    status = models.CharField(
+        max_length=16,
+        choices=LoadStatusChoices.choices,
+        default=LoadStatusChoices.PENDING,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "warehouse_ui_loadgroup"
+
+    def __str__(self):
+        return f"Group {self.vehicle_id} ({self.status})"
+
+    def touch(self):
+        self.save()  # auto_now=True handles updated_at
+
+
 class Load(models.Model):
     class Format(models.TextChoices):
         SMALL = "small", "Small"
         LARGE = "large", "Large"
-
-    class Status(models.TextChoices):
-        PENDING = "pending", "Pending"
-        IN_PROCESS = "in_process", "In Process"
-        COMPLETE = "complete", "Complete"
-        HOLD = "hold", "Hold"
 
     class Verification(models.TextChoices):
         UNVERIFIED = "unverified", "Unverified"
@@ -21,7 +44,9 @@ class Load(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     client_name = models.CharField(max_length=255)
     expected_qty = models.PositiveIntegerField()
-    format = models.CharField(max_length=10, choices=Format.choices, default=Format.SMALL)
+    format = models.CharField(
+        max_length=10, choices=Format.choices, default=Format.SMALL
+    )
     load_order = models.CharField(max_length=4, default="F")
 
     route_code = models.CharField(max_length=32, null=True, blank=True)
@@ -36,13 +61,24 @@ class Load(models.Model):
     )
 
     vehicle_id = models.CharField(max_length=64, null=True, blank=True)
+    group = models.ForeignKey(
+        LoadGroup,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="loads",
+    )
 
     missing_refs = models.JSONField(default=list, blank=True)
     status = models.CharField(
-        max_length=16, choices=Status.choices, default=Status.PENDING
+        max_length=16,
+        choices=LoadStatusChoices.choices,
+        default=LoadStatusChoices.PENDING,
     )
     loaded_qty = models.PositiveIntegerField(default=0)
     missing_qty = models.PositiveIntegerField(default=0)
+    is_na = models.BooleanField(default=False)
+    is_fnd = models.BooleanField(default=False)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

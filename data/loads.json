@@ -1,38 +1,66 @@
-[
-  {
-    "client_name": "Globex",
-    "expected_qty": 100,
-    "format": "large",
-    "id": "2",
-    "created_at": "2026-01-30T11:00:00.000000",
-    "updated_at": "2026-01-30T11:00:00.000000",
-    "status": "in_process",
-    "load_order": "MF",
-    "loaded_qty": 45,
-    "missing_qty": 0,
-    "missing_refs": [],
-    "vehicle_id": "28456",
-    "route_code": null,
-    "route_group_id": null,
-    "pallet_count": 10,
-    "verification_status": "unverified"
-  },
-  {
-    "client_name": "Initech",
-    "expected_qty": 20,
-    "format": "small",
-    "id": "3",
-    "created_at": "2026-01-30T09:00:00.000000",
-    "updated_at": "2026-01-30T12:00:00.000000",
-    "status": "complete",
-    "load_order": "P",
-    "loaded_qty": 20,
-    "missing_qty": 0,
-    "missing_refs": [],
-    "vehicle_id": "23789",
-    "route_code": "23-B",
-    "route_group_id": "Walgreens",
-    "pallet_count": null,
-    "verification_status": null
-  }
-]
+{
+  "loads": [
+    {
+      "client_name": "Initech",
+      "expected_qty": 20,
+      "format": "small",
+      "id": "3",
+      "created_at": "2026-01-30T09:00:00.000000",
+      "updated_at": "2026-01-30T16:12:32.936028",
+      "status": "complete",
+      "load_order": "P",
+      "loaded_qty": 16,
+      "missing_qty": 0,
+      "missing_refs": [
+        "4x 123"
+      ],
+      "is_na": true,
+      "is_fnd": false,
+      "vehicle_id": "23789",
+      "group_id": null,
+      "route_code": "23-B",
+      "route_group_id": "Walgreens",
+      "pallet_count": null,
+      "verification_status": null
+    },
+    {
+      "client_name": "WMT bayamon",
+      "expected_qty": 98,
+      "format": "large",
+      "id": "8c642c2f-0981-4a1e-b516-bd0ddc023857",
+      "created_at": "2026-01-30T15:36:01.568447",
+      "updated_at": "2026-01-30T16:01:42.252560",
+      "status": "pending",
+      "load_order": "F",
+      "loaded_qty": 0,
+      "missing_qty": 0,
+      "missing_refs": [],
+      "is_na": false,
+      "is_fnd": false,
+      "vehicle_id": "585",
+      "group_id": "bed9bcca-69b7-44d0-b6a4-b2c89a8c4219",
+      "route_code": null,
+      "route_group_id": null,
+      "pallet_count": 2,
+      "verification_status": null
+    }
+  ],
+  "groups": [
+    {
+      "vehicle_id": "585",
+      "max_pallet_count": 12,
+      "id": "bed9bcca-69b7-44d0-b6a4-b2c89a8c4219",
+      "status": "pending",
+      "created_at": "2026-01-30T14:39:52.705752",
+      "updated_at": "2026-01-30T15:51:40.995506"
+    },
+    {
+      "vehicle_id": "123",
+      "max_pallet_count": 123,
+      "id": "33a87748-dfb1-4f07-81ae-552b05133fd6",
+      "status": "pending",
+      "created_at": "2026-01-30T15:15:49.112449",
+      "updated_at": "2026-01-30T15:15:49.112456"
+    }
+  ]
+}
