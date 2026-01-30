@@ -207,6 +207,24 @@ export default function App() {
     }
   };
 
+  const handleDeleteLoad = async (id: string) => {
+    const originalLoads = [...loads];
+    setLoads(prev => prev.filter(l => l.id !== id));
+    setSelectedLoad(null);
+
+    try {
+      const res = await fetch(`/api/loads/${id}/`, {
+        method: 'DELETE'
+      });
+      if (!res.ok) throw new Error('Failed to delete');
+      toast.success('Load deleted successfully');
+    } catch (e) {
+      console.error(e);
+      toast.error('Failed to delete load');
+      setLoads(originalLoads);
+    }
+  };
+
   const handleQuickIncrement = (e: React.MouseEvent, load: Load) => {
     e.stopPropagation();
     if (load.loadedQty < load.expectedQty) {
@@ -370,6 +388,7 @@ export default function App() {
         load={selectedLoad}
         onClose={() => setSelectedLoad(null)}
         onUpdate={handleUpdateLoad}
+        onDelete={handleDeleteLoad}
       />
 
       <FilterModal

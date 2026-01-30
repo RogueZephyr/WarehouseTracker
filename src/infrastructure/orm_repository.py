@@ -55,6 +55,14 @@ class OrmRepository(Repository):
         obj.updated_at = timezone.now()
         obj.save()
 
+    def delete_load(self, load_id: str) -> bool:
+        try:
+            load_uuid = UUID(load_id)
+            deleted_count, _ = self._model.objects.filter(id=load_uuid).delete()
+            return deleted_count > 0
+        except (ValueError, Exception):
+            return False
+
     def list_active_loads_by_group(
         self, format_type: str, route_prefix: str
     ) -> List[LoadRecord]:
@@ -72,9 +80,7 @@ class OrmRepository(Repository):
 
     def _to_record(self, instance: LoadModel) -> LoadRecord:
         verification_value = (
-            instance.verification_status
-            if instance.verification_status
-            else None
+            instance.verification_status if instance.verification_status else None
         )
 
         return LoadRecord(

@@ -56,6 +56,15 @@ class JsonRepository(Repository):
 
         self._save_all(loads)
 
+    def delete_load(self, load_id: str) -> bool:
+        loads = self._load_all()
+        initial_len = len(loads)
+        loads = [load for load in loads if load.id != load_id]
+        if len(loads) < initial_len:
+            self._save_all(loads)
+            return True
+        return False
+
     def list_active_loads_by_group(
         self, format_type: str, route_prefix: str
     ) -> List[LoadRecord]:

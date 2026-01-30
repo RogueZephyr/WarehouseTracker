@@ -15,9 +15,8 @@ from src.infrastructure.orm_repository import OrmRepository
 
 # Initialize Repository
 REPO_PATH = os.path.join("data", "loads.json")
-USE_JSON_REPO = (
-    settings.REPOSITORY_BACKEND == "json"
-    or (settings.REPOSITORY_BACKEND == "auto" and settings.DEBUG)
+USE_JSON_REPO = settings.REPOSITORY_BACKEND == "json" or (
+    settings.REPOSITORY_BACKEND == "auto" and settings.DEBUG
 )
 repo = JsonRepository(REPO_PATH) if USE_JSON_REPO else OrmRepository()
 
@@ -119,3 +118,9 @@ class LoadDetailView(View):
             return JsonResponse(serialize_load(load))
         except Exception as e:
             return JsonResponse({"error": str(e)}, status=400)
+
+    def delete(self, request, load_id):
+        success = repo.delete_load(load_id)
+        if not success:
+            return JsonResponse({"error": "Not found or could not delete"}, status=404)
+        return JsonResponse({"status": "deleted"}, status=200)
