@@ -1,6 +1,6 @@
-# ==============================================================================
+# =====================================
 # WAREHOUSE LOADING TRACKER
-# ==============================================================================
+# =====================================
 
 A modern warehouse management dashboard designed to coordinate loading 
 operations between dock crews and supervisors. This application provides a 
