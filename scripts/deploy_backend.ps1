@@ -3,7 +3,7 @@
 .SYNOPSIS
     Prepares the Django backend for deployment: installs Python dependencies,
     seeds the JSON repository, runs migrations, and collects static assets.
->
+#>
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
@@ -12,6 +12,11 @@ $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
 $projectRoot = Resolve-Path (Join-Path $scriptDir "..")
 $originalLocation = Get-Location
 
+# Compatibility for Windows PowerShell 5.1 (which doesn't have $IsWindows)
+if (-not (Get-Variable -Name IsWindows -ErrorAction SilentlyContinue)) {
+    $IsWindows = $env:OS -match "Windows_NT"
+}
+
 try {
     Set-Location $projectRoot
 
@@ -19,8 +24,8 @@ try {
 
     $pythonCandidates = @("python", "python3")
     $pythonCmd = $pythonCandidates |
-        Where-Object { Get-Command $_ -ErrorAction SilentlyContinue } |
-        Select-Object -First 1
+    Where-Object { Get-Command $_ -ErrorAction SilentlyContinue } |
+    Select-Object -First 1
 
     if (-not $pythonCmd) {
         throw "Python was not found on PATH. Install Python 3.10+ and try again."
@@ -33,7 +38,8 @@ try {
 
     if ($IsWindows) {
         $pythonExeRelative = ".venv\Scripts\python.exe"
-    } else {
+    }
+    else {
         $pythonExeRelative = ".venv/bin/python"
     }
 
@@ -43,22 +49,21 @@ try {
 
     $pythonPath = (Resolve-Path $pythonExeRelative).Path
 
-    $pipArgs = @()
     function Invoke-Pip {
-        param([string[]]$Args)
-        & $pythonPath -m pip @Args
+        param([string[]]$PipArgs)
+        & $pythonPath -m pip @PipArgs
     }
 
     Write-Host "[setup] Upgrading pip, setuptools, and wheel"
-    Invoke-Pip -Args @("install", "--upgrade", "pip", "setuptools", "wheel")
+    Invoke-Pip -PipArgs @("install", "--upgrade", "pip", "setuptools", "wheel")
 
     Write-Host "[setup] Installing project dependencies"
-    Invoke-Pip -Args @("install", "-e", ".")
+    Invoke-Pip -PipArgs @("install", "-e", ".")
 
     $requirementsPath = Join-Path $projectRoot "requirements-dev.txt"
     if (Test-Path $requirementsPath) {
         Write-Host "[setup] Installing development helpers from requirements-dev.txt"
-        Invoke-Pip -Args @("install", "-r", $requirementsPath)
+        Invoke-Pip -PipArgs @("install", "-r", $requirementsPath)
     }
 
     $dataDir = Join-Path $projectRoot "data"
@@ -79,6 +84,7 @@ try {
     & $pythonPath manage.py collectstatic --noinput
 
     Write-Host "[setup] Backend prep complete. Activate the venv (`.venv\\Scripts\\Activate.ps1` on Windows or `.venv/bin/activate` elsewhere) to run the server."
-} finally {
+}
+finally {
     Set-Location $originalLocation
 }

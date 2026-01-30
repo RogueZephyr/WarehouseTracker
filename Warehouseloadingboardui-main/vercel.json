@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "https://warehouse-tracker-backend.onrender.com/api/$1"
+      "destination": "https://warehousetracker-1.onrender.com/api/$1"
     }
   ]
 }

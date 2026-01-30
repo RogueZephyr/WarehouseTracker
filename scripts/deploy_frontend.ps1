@@ -13,6 +13,11 @@ $projectRoot = Resolve-Path (Join-Path $scriptDir "..")
 $frontendRoot = Join-Path $projectRoot "Warehouseloadingboardui-main"
 $originalLocation = Get-Location
 
+# Compatibility for Windows PowerShell 5.1 (which doesn't have $IsWindows)
+if (-not (Get-Variable -Name IsWindows -ErrorAction SilentlyContinue)) {
+    $IsWindows = $env:OS -match "Windows_NT"
+}
+
 try {
     Set-Location $frontendRoot
 
@@ -28,7 +33,8 @@ try {
     if (Test-Path "package-lock.json") {
         Write-Host "[setup] Running npm ci (lockfile detected)"
         & $npmCommand.Path "ci"
-    } else {
+    }
+    else {
         Write-Host "[setup] Running npm install"
         & $npmCommand.Path "install"
     }
@@ -37,6 +43,7 @@ try {
     & $npmCommand.Path "run" "build"
 
     Write-Host "[setup] Frontend build complete. Confirm dist/ contains index.html and assets for Django."
-} finally {
+}
+finally {
     Set-Location $originalLocation
 }
