@@ -53,6 +53,13 @@ class OrmRepository(Repository):
         obj.vehicle_id = load.vehicle_id
         obj.missing_refs = load.missing_refs or []
         obj.status = load.status.value if hasattr(load.status, "value") else load.status
+        if load.group_id:
+            try:
+                obj.group_id = UUID(load.group_id)
+            except ValueError:
+                obj.group_id = load.group_id
+        else:
+            obj.group = None
         obj.loaded_qty = load.loaded_qty
         obj.missing_qty = load.missing_qty
         obj.updated_at = timezone.now()
