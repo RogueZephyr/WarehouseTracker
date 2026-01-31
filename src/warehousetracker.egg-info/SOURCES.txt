@@ -16,12 +16,15 @@ src/warehouse_ui/views.py
 src/warehouse_ui/migrations/0001_initial.py
 src/warehouse_ui/migrations/0002_loadgroup_load_group.py
 src/warehouse_ui/migrations/0003_alter_load_missing_refs.py
+src/warehouse_ui/migrations/0004_load_is_fnd_load_is_na.py
 src/warehouse_ui/migrations/__init__.py
 src/warehousetracker.egg-info/PKG-INFO
 src/warehousetracker.egg-info/SOURCES.txt
 src/warehousetracker.egg-info/dependency_links.txt
 src/warehousetracker.egg-info/requires.txt
 src/warehousetracker.egg-info/top_level.txt
+tests/test_api.py
 tests/test_json_repository.py
 tests/test_load_service.py
 tests/test_render_env_pipeline.py
+tests/test_views.py
