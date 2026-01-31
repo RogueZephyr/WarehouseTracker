@@ -2,6 +2,7 @@ services:
   - type: web
     name: warehouse-tracker-backend
     runtime: python
+    preDeployCommand: "./scripts/render_predeploy.sh"
     buildCommand: "pip install . && pip install gunicorn django-cors-headers whitenoise && python manage.py collectstatic --noinput"
     startCommand: "python manage.py migrate --noinput && gunicorn config.wsgi:application"
     envVars:
