@@ -1,0 +1,24 @@
+services:
+  - name: warehouse-tracker
+    type: web
+    env: python
+    plan: starter
+    region: oregon
+    branch: main
+    buildCommand: pip install -r requirements.txt
+    startCommand: bash scripts/start_server.sh
+    envVars:
+      - key: SECRET_KEY
+        value: 4c5299ca4392dfe6e6d27e9c71a3e3b6
+      - key: DEBUG
+        value: "False"
+      - key: ALLOWED_HOSTS
+        value: warehousetracker-1.onrender.com,warehouse-tracker-lemon.vercel.app,localhost
+      - key: CORS_ALLOWED_ORIGINS
+        value: https://warehouse-tracker-lemon.vercel.app,https://warehousetracker-1.onrender.com
+      - key: CSRF_TRUSTED_ORIGINS
+        value: https://warehouse-tracker-lemon.vercel.app,https://warehousetracker-1.onrender.com
+      - key: REPOSITORY_BACKEND
+        value: db
+      - key: DATABASE_URL
+        value: postgresql://postgres.ergdcehqpvykzrvlgdzq:G%40M%23SLIFE%5E%21%26@aws-1-us-east-1.pooler.supabase.com:5432/postgres
