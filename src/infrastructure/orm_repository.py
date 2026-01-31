@@ -1,22 +1,24 @@
 from typing import List, Optional
 from uuid import UUID
 
+from django.db import transaction
 from django.utils import timezone
 
 from src.application.interfaces import Repository
 from src.domain.models import (
     LoadFormat,
-    LoadRecord,
     LoadGroup,
+    LoadRecord,
     LoadStatus,
     VerificationStatus,
 )
-from src.warehouse_ui.models import Load as LoadModel
+from src.warehouse_ui.models import Load as LoadModel, LoadGroup as LoadGroupModel
 
 
 class OrmRepository(Repository):
     def __init__(self):
         self._model = LoadModel
+        self._group_model = LoadGroupModel
 
     def get_load(self, load_id: str) -> Optional[LoadRecord]:
         try:
@@ -80,19 +82,55 @@ class OrmRepository(Repository):
         return [self._to_record(instance) for instance in self._model.objects.all()]
 
     def get_group(self, group_id: str) -> Optional[LoadGroup]:
-        return None
+        try:
+            instance = self._group_model.objects.get(id=UUID(group_id))
+        except (self._group_model.DoesNotExist, ValueError):
+            return None
+        return self._group_to_record(instance)
 
     def save_group(self, group: LoadGroup) -> None:
-        pass
+        try:
+            group_uuid = UUID(group.id)
+        except ValueError:
+            group_uuid = UUID(str(group.id))
+
+        obj = self._group_model.objects.filter(id=group_uuid).first()
+        if not obj:
+            obj = self._group_model(id=group_uuid)
+
+        obj.vehicle_id = group.vehicle_id
+        obj.max_pallet_count = group.max_pallet_count
+        obj.status = group.status.value if hasattr(group.status, "value") else group.status
+        obj.updated_at = timezone.now()
+        obj.save()
+
+        # Sync dataclass timestamps
+        group.updated_at = obj.updated_at.isoformat()
+        if not group.created_at or getattr(group, "created_at", None) is None:
+            group.created_at = obj.created_at.isoformat()
 
     def list_all_groups(self) -> List[LoadGroup]:
-        return []
+        instances = self._group_model.objects.all()
+        return [self._group_to_record(instance) for instance in instances]
 
     def delete_group(self, group_id: str) -> bool:
-        return False
+        try:
+            group_uuid = UUID(group_id)
+        except ValueError:
+            return False
+
+        with transaction.atomic():
+            loads_updated = self._model.objects.filter(group_id=group_uuid).update(group=None)
+            deleted, _ = self._group_model.objects.filter(id=group_uuid).delete()
+        return deleted > 0
 
     def list_loads_by_group(self, group_id: str) -> List[LoadRecord]:
-        return []
+        try:
+            group_uuid = UUID(group_id)
+        except ValueError:
+            return []
+        instances = self._model.objects.filter(group_id=group_uuid)
+        return [self._to_record(instance) for instance in instances]
 
     def _to_record(self, instance: LoadModel) -> LoadRecord:
         verification_value = (
@@ -119,6 +157,16 @@ class OrmRepository(Repository):
             is_na=instance.is_na,
             is_fnd=instance.is_fnd,
             id=str(instance.id),
+            created_at=instance.created_at.isoformat(),
+            updated_at=instance.updated_at.isoformat(),
+        )
+
+    def _group_to_record(self, instance: LoadGroupModel) -> LoadGroup:
+        return LoadGroup(
+            vehicle_id=instance.vehicle_id,
+            max_pallet_count=instance.max_pallet_count,
+            id=str(instance.id),
+            status=LoadStatus(instance.status),
             created_at=instance.created_at.isoformat(),
             updated_at=instance.updated_at.isoformat(),
         )
