@@ -12,7 +12,11 @@ from src.domain.models import (
     LoadStatus,
     VerificationStatus,
 )
-from src.warehouse_ui.models import Load as LoadModel, LoadGroup as LoadGroupModel
+from src.warehouse_ui.models import (
+    Load as LoadModel,
+    LoadGroup as LoadGroupModel,
+    LoadStatusChoices,
+)
 
 
 class OrmRepository(Repository):
@@ -64,11 +68,16 @@ class OrmRepository(Repository):
         obj.missing_qty = load.missing_qty
         obj.updated_at = timezone.now()
         obj.save()
+        self._sync_group_status(load.group_id)
 
     def delete_load(self, load_id: str) -> bool:
         try:
             load_uuid = UUID(load_id)
+            obj = self._model.objects.filter(id=load_uuid).first()
+            group_id = str(obj.group_id) if obj and obj.group_id else None
             deleted_count, _ = self._model.objects.filter(id=load_uuid).delete()
+            if deleted_count > 0:
+                self._sync_group_status(group_id)
             return deleted_count > 0
         except (ValueError, Exception):
             return False
@@ -138,6 +147,33 @@ class OrmRepository(Repository):
             return []
         instances = self._model.objects.filter(group_id=group_uuid)
         return [self._to_record(instance) for instance in instances]
+
+    def _sync_group_status(self, group_id: Optional[str]):
+        if not group_id:
+            return
+        try:
+            group_uuid = UUID(group_id)
+        except ValueError:
+            return
+
+        group = self._group_model.objects.filter(id=group_uuid).first()
+        if not group:
+            return
+
+        loads = list(self._model.objects.filter(group_id=group_uuid))
+        if not loads:
+            return
+
+        if all(load.status == LoadStatusChoices.COMPLETE for load in loads):
+            new_status = LoadStatusChoices.COMPLETE
+        elif any(load.status == LoadStatusChoices.IN_PROCESS for load in loads):
+            new_status = LoadStatusChoices.IN_PROCESS
+        else:
+            new_status = LoadStatusChoices.PENDING
+
+        if group.status != new_status:
+            group.status = new_status
+            group.save(update_fields=["status", "updated_at"])
 
     def _to_record(self, instance: LoadModel) -> LoadRecord:
         verification_value = (
