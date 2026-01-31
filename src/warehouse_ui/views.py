@@ -53,6 +53,13 @@ def serialize_group(group: LoadGroup):
     return d
 
 
+def _ensure_completion_total(load: LoadRecord):
+    if load.status == LoadStatus.COMPLETE:
+        total = load.loaded_qty + load.missing_qty
+        if total < load.expected_qty:
+            load.missing_qty += load.expected_qty - total
+
+
 class IndexView(TemplateView):
     template_name = "index.html"
 
@@ -162,6 +169,7 @@ class LoadDetailView(View):
                         pass  # Ignore invalid enum values or casts
 
             load.touch()
+            _ensure_completion_total(load)
             validate_load(load)
             repo.save_load(load)
             return JsonResponse(serialize_load(load))
