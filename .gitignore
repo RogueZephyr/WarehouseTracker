@@ -9,6 +9,9 @@ venv
 .venv
 staticfiles
 LLM_notes
+db.sqlite3
+tmp
+.pytest_tmp
 
 Warehouseloadingboardui-main\node_modules
 Warehouseloadingboardui-main\dist

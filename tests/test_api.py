@@ -1,14 +1,15 @@
-import requests
+import httpx
 import json
 
 BASE_URL = "http://localhost:8000/api"
+TEST_GROUP_ID = "33a87748-dfb1-4f07-81ae-552b05133fd6"
 
 
-def test_group_detail(group_id):
-    url = f"{BASE_URL}/groups/{group_id}/"
+def test_group_detail():
+    url = f"{BASE_URL}/groups/{TEST_GROUP_ID}/"
     print(f"Fetching {url}...")
     try:
-        res = requests.get(url)
+        res = httpx.get(url, timeout=10.0)
         print(f"Status Code: {res.status_code}")
         if res.status_code == 200:
             data = res.json()
@@ -21,6 +22,4 @@ def test_group_detail(group_id):
 
 
 if __name__ == "__main__":
-    # From loads.json
-    group_id = "33a87748-dfb1-4f07-81ae-552b05133fd6"
-    test_group_detail(group_id)
+    test_group_detail()

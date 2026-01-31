@@ -23,6 +23,7 @@ dependencies = [
     "prometheus-client>=0.16",
     "psycopg[binary]>=3.1",
     "pydantic>=2.0",
+    "requests>=2.31",
     "pytest>=7.2",
     "pytest-asyncio>=0.21",
     "pytest-cov>=4.0",

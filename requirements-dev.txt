@@ -14,6 +14,7 @@ email-validator>=1.3
 
 # HTTP & testing helpers
 httpx>=0.24
+requests>=2.31
 
 # Observability (optional)
 sentry-sdk>=1.10

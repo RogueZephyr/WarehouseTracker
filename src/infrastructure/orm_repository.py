@@ -111,10 +111,13 @@ class OrmRepository(Repository):
             if verification_value
             else None,
             vehicle_id=instance.vehicle_id,
+            group_id=str(instance.group_id) if instance.group_id else None,
             missing_refs=instance.missing_refs or [],
             status=LoadStatus(instance.status),
             loaded_qty=instance.loaded_qty,
             missing_qty=instance.missing_qty,
+            is_na=instance.is_na,
+            is_fnd=instance.is_fnd,
             id=str(instance.id),
             created_at=instance.created_at.isoformat(),
             updated_at=instance.updated_at.isoformat(),

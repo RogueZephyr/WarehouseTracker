@@ -9,6 +9,9 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from dataclasses import asdict
 
+from src.application.commands import CreateLoadCommand, AssignVehicleCommand
+from src.application.services import LoadService
+from src.domain.exceptions import DomainError
 from src.domain.models import (
     LoadRecord,
     LoadGroup,
@@ -16,6 +19,7 @@ from src.domain.models import (
     LoadStatus,
     VerificationStatus,
 )
+from src.domain.rules import validate_load
 from src.infrastructure.json_repository import JsonRepository
 from src.infrastructure.orm_repository import OrmRepository
 
@@ -25,6 +29,7 @@ USE_JSON_REPO = settings.REPOSITORY_BACKEND == "json" or (
     settings.REPOSITORY_BACKEND == "auto" and settings.DEBUG
 )
 repo = JsonRepository(REPO_PATH) if USE_JSON_REPO else OrmRepository()
+service = LoadService(repo)
 
 
 def serialize_load(load: LoadRecord):
@@ -62,27 +67,52 @@ class LoadListCreateView(View):
     def post(self, request):
         try:
             data = json.loads(request.body)
+            format_value = data.get("format")
+            try:
+                load_format = LoadFormat(format_value)
+            except ValueError:
+                return JsonResponse(
+                    {"error": f"Invalid format: {format_value}"},
+                    status=400,
+                )
 
-            load = LoadRecord(
+            command = CreateLoadCommand(
                 client_name=data.get("client_name"),
                 expected_qty=int(data.get("expected_qty")),
-                format=LoadFormat(data.get("format")),
+                format=load_format,
                 load_order=data.get("load_order", "F"),
                 route_code=data.get("route_code"),
                 route_group_id=data.get("route_group_id"),
                 pallet_count=int(data.get("pallet_count"))
                 if data.get("pallet_count")
                 else None,
-                vehicle_id=data.get("vehicle_id"),
-                group_id=data.get("group_id"),
-                missing_refs=data.get("missing_refs") or [],
-                is_na=bool(data.get("is_na", False)),
-                is_fnd=bool(data.get("is_fnd", False)),
             )
+
+            load = service.create_load(command)
+
+            if data.get("vehicle_id"):
+                load = service.assign_vehicle(
+                    AssignVehicleCommand(load.id, data.get("vehicle_id"))
+                )
+
+            if data.get("group_id"):
+                load.group_id = data.get("group_id")
+
+            if data.get("missing_refs") is not None:
+                load.missing_refs = data.get("missing_refs") or []
+
+            load.is_na = bool(data.get("is_na", load.is_na))
+            load.is_fnd = bool(data.get("is_fnd", load.is_fnd))
+
+            validate_load(load)
             repo.save_load(load)
             return JsonResponse(serialize_load(load), status=201)
-        except Exception as e:
-            return JsonResponse({"error": str(e)}, status=400)
+        except DomainError as exc:
+            return JsonResponse(
+                {"error": exc.message, "code": exc.code}, status=400
+            )
+        except Exception as exc:
+            return JsonResponse({"error": str(exc)}, status=400)
 
 
 @method_decorator(csrf_exempt, name="dispatch")
@@ -132,10 +162,15 @@ class LoadDetailView(View):
                         pass  # Ignore invalid enum values or casts
 
             load.touch()
+            validate_load(load)
             repo.save_load(load)
             return JsonResponse(serialize_load(load))
-        except Exception as e:
-            return JsonResponse({"error": str(e)}, status=400)
+        except DomainError as exc:
+            return JsonResponse(
+                {"error": exc.message, "code": exc.code}, status=400
+            )
+        except Exception as exc:
+            return JsonResponse({"error": str(exc)}, status=400)
 
     def delete(self, request, load_id):
         success = repo.delete_load(load_id)
