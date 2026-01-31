@@ -18,5 +18,11 @@ else
   fi
 fi
 
+echo "Collecting static files..."
+if ! python manage.py collectstatic --noinput; then
+  echo "Collectstatic failed." >&2
+  exit 1
+fi
+
 echo "Starting Gunicorn..."
 exec gunicorn config.wsgi:application
