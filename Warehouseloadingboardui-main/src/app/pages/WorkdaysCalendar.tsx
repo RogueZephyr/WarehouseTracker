@@ -304,8 +304,8 @@ export const WorkdaysCalendar: React.FC<WorkdaysCalendarProps> = ({
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <header className="sticky top-0 z-30 bg-white border-b border-gray-200 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
+        <div className="max-w-7xl mx-auto px-4 py-3 sm:h-16 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             <button
               onClick={onNavigateBoard}
               className="p-2 rounded-lg text-gray-500 hover:bg-gray-100"
@@ -314,15 +314,15 @@ export const WorkdaysCalendar: React.FC<WorkdaysCalendarProps> = ({
               <ArrowLeft className="w-5 h-5" />
             </button>
             <div>
-              <h1 className="text-lg font-bold text-gray-900 leading-tight">Workdays Calendar</h1>
-              <div className="flex items-center gap-1.5 text-xs text-gray-500 font-medium">
+              <h1 className="text-base sm:text-lg font-bold text-gray-900 leading-tight">Workdays Calendar</h1>
+              <div className="flex items-center gap-1.5 text-[11px] sm:text-xs text-gray-500 font-medium">
                 <CalendarDays className="w-3 h-3" />
                 <span>{viewLabel}</span>
               </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 sm:justify-end">
             <div className="hidden sm:flex items-center gap-2 mr-2">
               <span className="text-xs text-gray-500">Worked only</span>
               <Switch checked={workedOnly} onCheckedChange={setWorkedOnly} />
@@ -331,7 +331,7 @@ export const WorkdaysCalendar: React.FC<WorkdaysCalendarProps> = ({
               <button
                 onClick={() => setViewMode('month')}
                 className={clsx(
-                  'px-3 py-1 text-xs font-bold rounded-md transition-colors',
+                  'px-2.5 py-1 text-[11px] sm:text-xs font-bold rounded-md transition-colors',
                   viewMode === 'month' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'
                 )}
               >
@@ -340,7 +340,7 @@ export const WorkdaysCalendar: React.FC<WorkdaysCalendarProps> = ({
               <button
                 onClick={() => setViewMode('week')}
                 className={clsx(
-                  'px-3 py-1 text-xs font-bold rounded-md transition-colors',
+                  'px-2.5 py-1 text-[11px] sm:text-xs font-bold rounded-md transition-colors',
                   viewMode === 'week' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'
                 )}
               >
@@ -351,7 +351,7 @@ export const WorkdaysCalendar: React.FC<WorkdaysCalendarProps> = ({
               onClick={openCreateShift}
               disabled={creatingShift}
               className={clsx(
-                "flex items-center gap-2 px-3 py-2 text-sm font-bold rounded-lg",
+                "flex items-center justify-center gap-2 px-3 py-2 text-xs sm:text-sm font-bold rounded-lg w-full sm:w-auto",
                 creatingShift ? "bg-blue-300 text-white cursor-not-allowed" : "bg-blue-600 text-white hover:bg-blue-700"
               )}
             >
@@ -362,7 +362,7 @@ export const WorkdaysCalendar: React.FC<WorkdaysCalendarProps> = ({
       </header>
 
       <div className="max-w-7xl mx-auto w-full px-4 py-6 flex flex-col gap-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <button
               onClick={handlePrev}
@@ -372,7 +372,7 @@ export const WorkdaysCalendar: React.FC<WorkdaysCalendarProps> = ({
             </button>
             <button
               onClick={() => setCurrentDate(new Date())}
-              className="px-3 py-2 rounded-lg border border-gray-200 bg-white text-sm font-semibold text-gray-600 hover:bg-gray-50"
+              className="px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs sm:text-sm font-semibold text-gray-600 hover:bg-gray-50"
             >
               Today
             </button>
@@ -390,14 +390,14 @@ export const WorkdaysCalendar: React.FC<WorkdaysCalendarProps> = ({
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-6">
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
-            <div className="grid grid-cols-7 text-xs text-gray-500 font-bold uppercase tracking-widest mb-3">
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-3 sm:p-4">
+            <div className="grid grid-cols-7 text-[10px] sm:text-xs text-gray-500 font-bold uppercase tracking-[0.12em] sm:tracking-widest mb-3">
               {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
                 <div key={day} className="text-center">{day}</div>
               ))}
             </div>
 
-            <div className="grid grid-cols-7 gap-3">
+            <div className="grid grid-cols-7 gap-1.5 sm:gap-3">
               {days.map((day) => {
                 const workday = formatWorkday(day);
                 const summary = daySummaries.get(workday);
@@ -412,7 +412,7 @@ export const WorkdaysCalendar: React.FC<WorkdaysCalendarProps> = ({
                     <div
                       key={workday}
                       className={clsx(
-                        'h-24 rounded-lg border border-dashed border-gray-200 bg-gray-50/40 text-gray-300 flex items-center justify-center text-xs',
+                        'h-16 sm:h-24 rounded-lg border border-dashed border-gray-200 bg-gray-50/40 text-gray-300 flex items-center justify-center text-[11px] sm:text-xs',
                         muted && 'opacity-40'
                       )}
                     >
@@ -426,7 +426,7 @@ export const WorkdaysCalendar: React.FC<WorkdaysCalendarProps> = ({
                     key={workday}
                     onClick={() => setSelectedDay(workday)}
                     className={clsx(
-                      'h-24 rounded-lg border text-left p-2 flex flex-col justify-between transition-colors',
+                      'h-16 sm:h-24 rounded-lg border text-left p-2 flex flex-col justify-between transition-colors',
                       isWorked
                         ? 'border-blue-200 bg-blue-50/40 hover:bg-blue-50'
                       : openCount > 0
@@ -436,12 +436,12 @@ export const WorkdaysCalendar: React.FC<WorkdaysCalendarProps> = ({
                     muted && 'opacity-60'
                   )}
                   >
-                    <span className="text-xs font-semibold text-gray-700">{format(day, 'd')}</span>
+                    <span className="text-[11px] sm:text-xs font-semibold text-gray-700">{format(day, 'd')}</span>
                     {summary ? (
                       <div className="space-y-1">
-                        <div className="text-[10px] text-gray-500">{summary.shifts.length} shift{summary.shifts.length !== 1 ? 's' : ''}</div>
+                        <div className="text-[9px] sm:text-[10px] text-gray-500">{summary.shifts.length} shift{summary.shifts.length !== 1 ? 's' : ''}</div>
                         <div className={clsx(
-                          'text-xs font-bold',
+                          'text-[11px] sm:text-xs font-bold',
                           summary.fillRate >= 100 ? 'text-green-700' : 'text-amber-700'
                         )}>
                           {summary.fillRate}% fill
@@ -449,11 +449,11 @@ export const WorkdaysCalendar: React.FC<WorkdaysCalendarProps> = ({
                       </div>
                     ) : openCount > 0 ? (
                       <div className="space-y-1">
-                        <div className="text-[10px] text-blue-600 font-semibold">{openCount} open</div>
-                        <div className="text-[10px] text-gray-400">In progress</div>
+                        <div className="text-[9px] sm:text-[10px] text-blue-600 font-semibold">{openCount} open</div>
+                        <div className="text-[9px] sm:text-[10px] text-gray-400">In progress</div>
                       </div>
                     ) : (
-                      <span className="text-[10px] text-gray-300">No shifts</span>
+                      <span className="hidden sm:block text-[10px] text-gray-300">No shifts</span>
                     )}
                   </button>
                 );
@@ -461,11 +461,11 @@ export const WorkdaysCalendar: React.FC<WorkdaysCalendarProps> = ({
             </div>
           </div>
 
-          <aside className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 flex flex-col gap-4">
+          <aside className="bg-white rounded-xl border border-gray-200 shadow-sm p-3 sm:p-4 flex flex-col gap-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs font-bold text-gray-500 uppercase">Selected day</p>
-                <p className="text-lg font-bold text-gray-900">{format(new Date(selectedDay + 'T00:00:00'), 'MMM d, yyyy')}</p>
+                <p className="text-base sm:text-lg font-bold text-gray-900">{format(new Date(selectedDay + 'T00:00:00'), 'MMM d, yyyy')}</p>
               </div>
               <span className="text-xs text-gray-400">{warehouseTimeZone}</span>
             </div>
@@ -561,11 +561,11 @@ export const WorkdaysCalendar: React.FC<WorkdaysCalendarProps> = ({
           </aside>
         </div>
 
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-3 sm:p-4">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs font-bold text-gray-500 uppercase">Weekly totals</p>
-              <p className="text-sm text-gray-600">Small + Large combined</p>
+              <p className="text-xs sm:text-sm text-gray-600">Small + Large combined</p>
             </div>
             <span className={clsx(
               'px-3 py-1 rounded-full text-xs font-bold',
