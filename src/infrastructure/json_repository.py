@@ -103,7 +103,10 @@ class JsonRepository(Repository):
             if load.status == LoadStatus.COMPLETE:
                 continue
 
-            if shift_id and load.shift_id != shift_id:
+            if shift_id is None:
+                if load.shift_id is not None:
+                    continue
+            elif load.shift_id != shift_id:
                 continue
 
             # Filter by format (loose string match or enum)

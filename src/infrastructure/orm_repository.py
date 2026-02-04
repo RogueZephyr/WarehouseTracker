@@ -98,7 +98,9 @@ class OrmRepository(Repository):
         if format_type:
             qs = qs.filter(format=format_type)
 
-        if shift_id:
+        if shift_id is None:
+            qs = qs.filter(shift__isnull=True)
+        elif shift_id:
             try:
                 qs = qs.filter(shift_id=UUID(shift_id))
             except ValueError:
