@@ -94,7 +94,7 @@ class OrmRepository(Repository):
     def list_active_loads_by_group(
         self, format_type: str, route_prefix: str, shift_id: Optional[str] = None
     ) -> List[LoadRecord]:
-        qs = self._model.objects.exclude(status=LoadModel.Status.COMPLETE)
+        qs = self._model.objects.exclude(status=LoadStatusChoices.COMPLETE)
         if format_type:
             qs = qs.filter(format=format_type)
 
