@@ -225,6 +225,11 @@ export const LoadGroupDetailModal: React.FC<LoadGroupDetailModalProps> = ({
                                                 <div className="flex flex-col">
                                                     <span className="font-medium text-gray-900">{load.clientName}</span>
                                                     <div className="flex gap-1 mt-0.5">
+                                                        {load.palletCount !== undefined && (
+                                                            <span className="px-1.5 py-0.5 bg-blue-50 text-blue-700 text-[8px] font-bold rounded border border-blue-200 uppercase tracking-tighter">
+                                                                PLT {load.palletCount}
+                                                            </span>
+                                                        )}
                                                         {load.isNA && <span className="px-1.5 py-0.5 bg-gray-100 text-gray-500 text-[8px] font-bold rounded border border-gray-200 uppercase tracking-tighter">N/A</span>}
                                                         {load.isFND && <span className="px-1.5 py-0.5 bg-amber-100 text-amber-700 text-[8px] font-bold rounded border border-amber-200 uppercase tracking-tighter">FND</span>}
                                                     </div>
@@ -307,6 +312,7 @@ export const LoadGroupDetailModal: React.FC<LoadGroupDetailModalProps> = ({
                                                 <div className="flex flex-col">
                                                     <span className="font-bold text-gray-900">{load.clientName}</span>
                                                     <div className="flex gap-1 mt-0.5">
+                                                        {load.palletCount !== undefined && <span className="px-1.5 py-0.5 bg-blue-50 text-blue-700 text-[8px] font-bold rounded border border-blue-200 uppercase">PLT {load.palletCount}</span>}
                                                         {load.isNA && <span className="px-1.5 py-0.5 bg-gray-100 text-gray-500 text-[8px] font-bold rounded border border-gray-200 uppercase">N/A</span>}
                                                         {load.isFND && <span className="px-1.5 py-0.5 bg-amber-100 text-amber-700 text-[8px] font-bold rounded border border-amber-200 uppercase">FND</span>}
                                                     </div>

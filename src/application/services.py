@@ -30,6 +30,7 @@ class LoadService:
             route_code=cmd.route_code,
             route_group_id=cmd.route_group_id,
             pallet_count=cmd.pallet_count,
+            shift_id=cmd.shift_id,
             verification_status=VerificationStatus.UNVERIFIED
             if cmd.format == LoadFormat.LARGE
             else None,
@@ -125,7 +126,9 @@ class LoadService:
 
         # Get active loads for this group
         # Note: We query by prefix.
-        active_loads = self.repo.list_active_loads_by_group("small", group_prefix)
+        active_loads = self.repo.list_active_loads_by_group(
+            "small", group_prefix, shift_id=cmd.shift_id
+        )
 
         if group_prefix in ["26", "28"]:
             # Rule: Only one active route_code at a time per group.

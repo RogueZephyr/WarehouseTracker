@@ -57,6 +57,15 @@ class OrmRepository(Repository):
         obj.vehicle_id = load.vehicle_id
         obj.missing_refs = load.missing_refs or []
         obj.status = load.status.value if hasattr(load.status, "value") else load.status
+        obj.is_na = load.is_na
+        obj.is_fnd = load.is_fnd
+        if load.shift_id:
+            try:
+                obj.shift_id = UUID(load.shift_id)
+            except ValueError:
+                obj.shift_id = load.shift_id
+        else:
+            obj.shift_id = None
         if load.group_id:
             try:
                 obj.group_id = UUID(load.group_id)
@@ -83,11 +92,17 @@ class OrmRepository(Repository):
             return False
 
     def list_active_loads_by_group(
-        self, format_type: str, route_prefix: str
+        self, format_type: str, route_prefix: str, shift_id: Optional[str] = None
     ) -> List[LoadRecord]:
         qs = self._model.objects.exclude(status=LoadModel.Status.COMPLETE)
         if format_type:
             qs = qs.filter(format=format_type)
+
+        if shift_id:
+            try:
+                qs = qs.filter(shift_id=UUID(shift_id))
+            except ValueError:
+                qs = qs.filter(shift_id=shift_id)
 
         if route_prefix:
             qs = qs.filter(route_code__startswith=route_prefix)
@@ -116,7 +131,16 @@ class OrmRepository(Repository):
 
         obj.vehicle_id = group.vehicle_id
         obj.max_pallet_count = group.max_pallet_count
-        obj.status = group.status.value if hasattr(group.status, "value") else group.status
+        obj.status = (
+            group.status.value if hasattr(group.status, "value") else group.status
+        )
+        if group.shift_id:
+            try:
+                obj.shift_id = UUID(group.shift_id)
+            except ValueError:
+                obj.shift_id = group.shift_id
+        else:
+            obj.shift_id = None
         obj.updated_at = timezone.now()
         obj.save()
 
@@ -136,7 +160,9 @@ class OrmRepository(Repository):
             return False
 
         with transaction.atomic():
-            loads_updated = self._model.objects.filter(group_id=group_uuid).update(group=None)
+            loads_updated = self._model.objects.filter(group_id=group_uuid).update(
+                group=None
+            )
             deleted, _ = self._group_model.objects.filter(id=group_uuid).delete()
         return deleted > 0
 
@@ -193,6 +219,7 @@ class OrmRepository(Repository):
             else None,
             vehicle_id=instance.vehicle_id,
             group_id=str(instance.group_id) if instance.group_id else None,
+            shift_id=str(instance.shift_id) if instance.shift_id else None,
             missing_refs=instance.missing_refs or [],
             status=LoadStatus(instance.status),
             loaded_qty=instance.loaded_qty,
@@ -210,6 +237,7 @@ class OrmRepository(Repository):
             max_pallet_count=instance.max_pallet_count,
             id=str(instance.id),
             status=LoadStatus(instance.status),
+            shift_id=str(instance.shift_id) if instance.shift_id else None,
             created_at=instance.created_at.isoformat(),
             updated_at=instance.updated_at.isoformat(),
         )

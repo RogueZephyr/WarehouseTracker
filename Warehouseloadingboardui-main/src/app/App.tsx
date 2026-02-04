@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Header } from './components/Header';
 import { BottomNav } from './components/BottomNav';
 import { LoadCard } from './components/LoadCard';
@@ -7,10 +7,13 @@ import { CreateLoadModal } from './components/CreateLoadModal';
 import { LoadDetailModal } from './components/LoadDetailModal';
 import { LoadGroupDetailModal } from './components/LoadGroupDetailModal';
 import { FilterModal } from './components/FilterModal';
-import { Load, LoadGroup, FilterState, LoadStatus, LoadFormat } from './types';
-import { Plus, ChevronDown, ChevronRight, RefreshCw } from 'lucide-react';
+import { Load, LoadGroup, FilterState, LoadStatus, LoadFormat, Shift } from './types';
+import { Plus, ChevronDown, ChevronRight, RefreshCw, Clock } from 'lucide-react';
 import { clsx } from 'clsx';
 import { toast, Toaster } from 'sonner';
+import { WorkdaysCalendar } from './pages/WorkdaysCalendar';
+import { ShiftClosePrompt } from './components/ShiftClosePrompt';
+import { toFrontendShift } from './shiftUtils';
 
 // --- Mappers ---
 
@@ -55,7 +58,8 @@ const toFrontend = (data: any): Load => {
     isNA: !!data.is_na,
     isFND: !!data.is_fnd,
     createdAt: data.created_at ? new Date(data.created_at) : new Date(),
-    groupId: data.group_id
+    groupId: data.group_id,
+    shiftId: data.shift_id
   };
 };
 
@@ -65,21 +69,29 @@ const toBackend = (load: Partial<Load>): any => {
     'In Process': 'in_process',
     'Complete': 'complete',
     'Verified': 'verified',
-    'unverified': 'unverified'
+    'Unverified': 'unverified'
   };
   const formatMap: Record<string, string> = {
     'Small': 'small',
     'Large': 'large'
   };
 
+  const normalizedFormat = load.format
+    ? formatMap[load.format] || String(load.format).trim().toLowerCase()
+    : undefined;
+
   const payload: any = {
     client_name: load.clientName,
-    expected_qty: load.expectedQty ? Number(load.expectedQty) : undefined,
-    format: load.format ? formatMap[load.format] : undefined,
+    expected_qty: load.expectedQty !== undefined && load.expectedQty !== null
+      ? Number(load.expectedQty)
+      : undefined,
+    format: normalizedFormat,
     load_order: load.loadOrder,
     route_code: load.routeCode,
     route_group_id: load.routeGroup,
-    pallet_count: load.palletCount ? Number(load.palletCount) : undefined,
+    pallet_count: load.palletCount !== undefined && load.palletCount !== null
+      ? Number(load.palletCount)
+      : undefined,
     vehicle_id: load.vehicleId,
     status: load.status ? statusMap[load.status] : undefined,
     loaded_qty: load.loadedQty !== undefined ? Number(load.loadedQty) : undefined,
@@ -87,6 +99,7 @@ const toBackend = (load: Partial<Load>): any => {
     is_na: load.isNA,
     is_fnd: load.isFND,
     group_id: load.groupId,
+    shift_id: load.shiftId,
   };
 
   // Remove undefined fields to avoid sending null values
@@ -129,6 +142,7 @@ const toFrontendGroup = (data: any): LoadGroup => {
     maxPalletCount: Number(data.max_pallet_count) || 0,
     status: statusMap[data.status] || 'Pending',
     createdAt: data.created_at ? new Date(data.created_at) : new Date(),
+    shiftId: data.shift_id,
     loads: Array.isArray(data.loads) ? data.loads.map((l: any) => {
       try {
         return toFrontend(l);
@@ -144,12 +158,19 @@ const toBackendGroup = (group: Partial<LoadGroup>): any => {
   return {
     vehicle_id: group.vehicleId,
     max_pallet_count: group.maxPalletCount,
-    status: group.status ? group.status.toLowerCase().replace(' ', '_') : undefined
+    status: group.status ? group.status.toLowerCase().replace(' ', '_') : undefined,
+    shift_id: group.shiftId
   };
 };
 
 
 export default function App() {
+  const [route, setRoute] = useState(window.location.pathname);
+  const [warehouseTimeZone, setWarehouseTimeZone] = useState('America/Puerto_Rico');
+  const [activeShiftId, setActiveShiftId] = useState<string | null>(null);
+  const [overdueShift, setOverdueShift] = useState<Shift | null>(null);
+  const notifiedOverdueRef = useRef<Set<string>>(new Set());
+
   const [loads, setLoads] = useState<Load[]>([]);
   const [groups, setGroups] = useState<LoadGroup[]>([]);
   const [filters, setFilters] = useState<FilterState>({
@@ -157,6 +178,14 @@ export default function App() {
     vehicleGroup: 'All',
     statuses: [],
   });
+
+  const isCalendarView = route.startsWith('/calendar');
+
+  const navigate = (path: string) => {
+    if (window.location.pathname === path) return;
+    window.history.pushState({}, '', path);
+    setRoute(path);
+  };
 
   // Modal States
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -167,12 +196,69 @@ export default function App() {
   // Section Collapse State (Mobile)
   const [isCompleteCollapsed, setIsCompleteCollapsed] = useState(true);
 
+  useEffect(() => {
+    const handlePop = () => setRoute(window.location.pathname);
+    window.addEventListener('popstate', handlePop);
+    return () => window.removeEventListener('popstate', handlePop);
+  }, []);
+
+  useEffect(() => {
+    const fetchConfig = async () => {
+      try {
+        const res = await fetch('/api/config/');
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data?.warehouse_time_zone) {
+          setWarehouseTimeZone(data.warehouse_time_zone);
+        }
+        if (data?.active_shift_id) {
+          setActiveShiftId(data.active_shift_id);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    fetchConfig();
+  }, []);
+
+  useEffect(() => {
+    const fetchOverdueShifts = async () => {
+      try {
+        const res = await fetch('/api/shifts/?status=open');
+        if (!res.ok) return;
+        const data = await res.json();
+        const openShifts: Shift[] = data.map(toFrontendShift);
+        const overdue = openShifts.filter((shift) => shift.isOverdue);
+
+        if (overdue.length > 0) {
+          const first = overdue[0];
+          if (!notifiedOverdueRef.current.has(first.id)) {
+            toast.warning('Shift open over 12 hours');
+            notifiedOverdueRef.current.add(first.id);
+          }
+          if (!overdueShift || overdueShift.id !== first.id) {
+            setOverdueShift(first);
+          }
+        } else if (overdueShift) {
+          setOverdueShift(null);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    };
+
+    fetchOverdueShifts();
+    const interval = setInterval(fetchOverdueShifts, 60000);
+    return () => clearInterval(interval);
+  }, [overdueShift]);
+
   // --- API ---
   const fetchLoads = async () => {
     try {
+      const shiftQuery = activeShiftId ? `?shift_id=${activeShiftId}` : '';
       const [loadsRes, groupsRes] = await Promise.all([
-        fetch('/api/loads/'),
-        fetch('/api/groups/')
+        fetch(`/api/loads/${shiftQuery}`),
+        fetch(`/api/groups/${shiftQuery}`)
       ]);
 
       if (!loadsRes.ok || !groupsRes.ok) throw new Error('Failed to fetch');
@@ -204,10 +290,11 @@ export default function App() {
   };
 
   useEffect(() => {
+    if (isCalendarView) return;
     fetchLoads();
     const interval = setInterval(fetchLoads, 5000);
     return () => clearInterval(interval);
-  }, [selectedGroup?.id, selectedLoad?.id]);
+  }, [selectedGroup?.id, selectedLoad?.id, isCalendarView, activeShiftId]);
 
   // Derived State
   const filteredLoads = useMemo(() => {
@@ -256,6 +343,7 @@ export default function App() {
 
       // For prototype, assuming Modal returns valid partial Load.
       const payload = toBackend(newLoadData);
+      if (activeShiftId) payload.shift_id = activeShiftId;
       // Default assignment if missing
       if (!payload.vehicle_id) payload.vehicle_id = "Temp-" + Math.floor(Math.random() * 1000);
 
@@ -288,6 +376,9 @@ export default function App() {
 
     try {
       const payload = toBackend(updatedLoad);
+      if (activeShiftId && !payload.shift_id) {
+        payload.shift_id = activeShiftId;
+      }
       const res = await fetch(`/api/loads/${updatedLoad.id}/`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -368,10 +459,11 @@ export default function App() {
 
   const handleCreateGroup = async (groupData: any) => {
     try {
+      const payload = toBackendGroup({ ...groupData, shiftId: activeShiftId || groupData.shiftId });
       const res = await fetch('/api/groups/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(toBackendGroup(groupData))
+        body: JSON.stringify(payload)
       });
       if (!res.ok) throw new Error('Failed to create group');
       fetchLoads();
@@ -384,10 +476,11 @@ export default function App() {
 
   const handleUpdateGroup = async (group: LoadGroup) => {
     try {
+      const payload = toBackendGroup({ ...group, shiftId: group.shiftId || activeShiftId || undefined });
       const res = await fetch(`/api/groups/${group.id}/`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(toBackendGroup(group))
+        body: JSON.stringify(payload)
       });
       if (!res.ok) throw new Error('Failed to update group');
       fetchLoads();
@@ -413,6 +506,11 @@ export default function App() {
   const handleAddClientLoad = async (loadData: any) => {
     try {
       const payload = toBackend(loadData);
+      if (selectedGroup?.shiftId) {
+        payload.shift_id = selectedGroup.shiftId;
+      } else if (activeShiftId) {
+        payload.shift_id = activeShiftId;
+      }
       const res = await fetch('/api/loads/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -435,201 +533,276 @@ export default function App() {
     toast.info('Board refreshed');
   };
 
+  const handleOpenShift = async () => {
+    try {
+      const res = await fetch('/api/shifts/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          start_at: new Date().toISOString(),
+          status: 'open',
+          expected_small: 0,
+          loaded_small: 0,
+          expected_large: 0,
+          loaded_large: 0,
+        }),
+      });
+      if (!res.ok) throw new Error('Failed to open shift');
+      const created = await res.json();
+      if (created?.id) {
+        handleActivateShift(created.id);
+      }
+      toast.success('Shift opened');
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to open shift');
+    }
+  };
+
+  const handleActivateShift = (shiftId: string) => {
+    setActiveShiftId(shiftId);
+    setSelectedLoad(null);
+    setSelectedGroup(null);
+    setLoads([]);
+    setGroups([]);
+  };
+
+  const handleCloseOverdueShift = async (shiftId: string, endAtIso: string) => {
+    try {
+      const res = await fetch(`/api/shifts/${shiftId}/`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ end_at: endAtIso, status: 'closed' }),
+      });
+      if (!res.ok) throw new Error('Failed to close shift');
+      toast.success('Shift closed');
+      setOverdueShift(null);
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to close shift');
+    }
+  };
+
   const filterActive = filters.format !== 'All' || filters.vehicleGroup !== 'All' || filters.statuses.length > 0;
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col font-sans">
-      <Toaster position="top-center" />
-
-      <Header
-        onFilterClick={() => setIsFilterOpen(true)}
-        filterActive={filterActive}
-      />
-
-      {/* Main Content */}
-      <main className="flex-1 overflow-x-hidden overflow-y-auto p-4 pb-24 md:pb-4">
-        <div className="max-w-7xl mx-auto h-full">
-
-          {/* Desktop Controls (Hidden on Mobile) */}
-          <div className="hidden md:flex justify-end mb-4 gap-2">
-            <button
-              onClick={handleRefresh}
-              className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              <RefreshCw className="w-4 h-4" /> Refresh
-            </button>
-            <button
-              onClick={() => setIsCreateOpen(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 shadow-sm transition-colors"
-            >
-              <Plus className="w-4 h-4" /> New Load
-            </button>
-          </div>
-
-          {/* Board Layout */}
-          <div className="flex flex-col md:grid md:grid-cols-3 gap-6 h-full">
-
-            {/* Pending Column */}
-            <section className="flex flex-col gap-3 min-w-0">
-              <div className="flex items-center justify-between sticky top-0 bg-gray-50 z-10 py-2">
-                <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-gray-400" />
-                  Pending
-                  <span className="bg-gray-200 text-gray-700 text-xs px-2 py-0.5 rounded-full">{sections.pending.length}</span>
-                </h2>
-              </div>
-              <div className="space-y-3">
-                {sections.pending.map(item => (
-                  'maxPalletCount' in item ? (
-                    <GroupCard
-                      key={item.id}
-                      group={item as LoadGroup}
-                      onClick={() => item && handleViewGroup(item as LoadGroup)}
-                    />
-                  ) : (
-                    <LoadCard
-                      key={item.id}
-                      load={item as Load}
-                      onClick={() => setSelectedLoad(item as Load)}
-                      onIncrement={(e) => handleQuickIncrement(e, item as Load)}
-                      onMissing={(e) => handleSetMissing(e, item as Load)}
-                      onMore={(e) => { e.stopPropagation(); setSelectedLoad(item as Load); }}
-                      onStatusChange={(status) => handleStandaloneStatusChange(item as Load, status)}
-                    />
-                  )
-                ))}
-                {sections.pending.length === 0 && (
-                  <div className="text-center py-8 text-gray-400 text-sm border-2 border-dashed border-gray-200 rounded-lg">
-                    No pending loads
-                  </div>
-                )}
-              </div>
-            </section>
-
-            {/* In Process Column */}
-            <section className="flex flex-col gap-3 min-w-0">
-              <div className="flex items-center justify-between sticky top-0 bg-gray-50 z-10 py-2">
-                <h2 className="text-lg font-bold text-blue-800 flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-blue-500" />
-                  In Process
-                  <span className="bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded-full">{sections.inProcess.length}</span>
-                </h2>
-              </div>
-              <div className="space-y-3">
-                {sections.inProcess.map(item => (
-                  'maxPalletCount' in item ? (
-                    <GroupCard
-                      key={item.id}
-                      group={item as LoadGroup}
-                      onClick={() => item && handleViewGroup(item as LoadGroup)}
-                    />
-                  ) : (
-                    <LoadCard
-                      key={item.id}
-                      load={item as Load}
-                      onClick={() => setSelectedLoad(item as Load)}
-                      onIncrement={(e) => handleQuickIncrement(e, item as Load)}
-                      onMissing={(e) => handleSetMissing(e, item as Load)}
-                      onMore={(e) => { e.stopPropagation(); setSelectedLoad(item as Load); }}
-                      onStatusChange={(status) => handleStandaloneStatusChange(item as Load, status)}
-                    />
-                  )
-                ))}
-                {sections.inProcess.length === 0 && (
-                  <div className="text-center py-8 text-gray-400 text-sm border-2 border-dashed border-gray-200 rounded-lg">
-                    No active loads
-                  </div>
-                )}
-              </div>
-            </section>
-
-            {/* Complete Column */}
-            <section className="flex flex-col gap-3 min-w-0">
-              <div
-                className="flex items-center justify-between sticky top-0 bg-gray-50 z-10 py-2 cursor-pointer md:cursor-default"
-                onClick={() => setIsCompleteCollapsed(!isCompleteCollapsed)}
-              >
-                <h2 className="text-lg font-bold text-green-800 flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-green-500" />
-                  Complete
-                  <span className="bg-green-100 text-green-800 text-xs px-2 py-0.5 rounded-full">{sections.complete.length}</span>
-                </h2>
-                <div className="md:hidden text-gray-500">
-                  {isCompleteCollapsed ? <ChevronRight className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
-                </div>
-              </div>
-
-              <div className={clsx("space-y-3", isCompleteCollapsed && "hidden md:block")}>
-                {sections.complete.map(item => (
-                  'maxPalletCount' in item ? (
-                    <GroupCard
-                      key={item.id}
-                      group={item as LoadGroup}
-                      onClick={() => item && handleViewGroup(item as LoadGroup)}
-                    />
-                  ) : (
-                    <LoadCard
-                      key={item.id}
-                      load={item as Load}
-                      onClick={() => setSelectedLoad(item as Load)}
-                      onIncrement={(e) => handleQuickIncrement(e, item as Load)}
-                      onMissing={(e) => handleSetMissing(e, item as Load)}
-                      onMore={(e) => { e.stopPropagation(); setSelectedLoad(item as Load); }}
-                      onStatusChange={(status) => handleStandaloneStatusChange(item as Load, status)}
-                    />
-                  )
-                ))}
-                {sections.complete.length === 0 && (
-                  <div className="text-center py-8 text-gray-400 text-sm border-2 border-dashed border-gray-200 rounded-lg">
-                    No completed loads today
-                  </div>
-                )}
-              </div>
-            </section>
-
-          </div>
-        </div>
-      </main>
-
-      <BottomNav
-        onNewLoad={() => setIsCreateOpen(true)}
-        onRefresh={handleRefresh}
-      />
-
-      {/* Modals */}
-      <CreateLoadModal
-        isOpen={isCreateOpen}
-        onClose={() => setIsCreateOpen(false)}
-        onSubmit={handleCreateLoad}
-        onCreateGroup={handleCreateGroup}
-      />
-
-      <LoadDetailModal
-        load={selectedLoad}
-        onClose={() => setSelectedLoad(null)}
-        onUpdate={handleUpdateLoad}
-        onDelete={handleDeleteLoad}
-      />
-
-      <LoadGroupDetailModal
-        group={selectedGroup}
-        onClose={() => setSelectedGroup(null)}
-        onUpdateGroup={handleUpdateGroup}
-        onDeleteGroup={handleDeleteGroup}
-        onAddLoad={handleAddClientLoad}
-        onUpdateLoad={handleUpdateLoad}
-        onDeleteLoad={handleDeleteLoad}
-        onInspectLoad={setSelectedLoad}
-      />
-
-      <FilterModal
-        isOpen={isFilterOpen}
-        onClose={() => setIsFilterOpen(false)}
-        filters={filters}
-        onApply={setFilters}
-      />
-
       <Toaster position="top-right" richColors />
+
+      {isCalendarView ? (
+        <WorkdaysCalendar
+          warehouseTimeZone={warehouseTimeZone}
+          onNavigateBoard={() => navigate('/')}
+          onActivateShift={handleActivateShift}
+        />
+      ) : (
+        <>
+          <Header
+            onFilterClick={() => setIsFilterOpen(true)}
+            filterActive={filterActive}
+            onCalendarClick={() => navigate('/calendar/')}
+            calendarActive={false}
+          />
+
+          {/* Main Content */}
+          <main className="flex-1 overflow-x-hidden overflow-y-auto p-4 pb-24 md:pb-4">
+            <div className="max-w-7xl mx-auto h-full">
+
+              {/* Desktop Controls (Hidden on Mobile) */}
+              <div className="hidden md:flex justify-end mb-4 gap-2">
+                <button
+                  onClick={handleRefresh}
+                  className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  <RefreshCw className="w-4 h-4" /> Refresh
+                </button>
+                <button
+                  onClick={handleOpenShift}
+                  className="flex items-center gap-2 px-4 py-2 bg-white border border-blue-200 text-blue-700 font-semibold rounded-lg hover:bg-blue-50 transition-colors"
+                >
+                  <Clock className="w-4 h-4" /> Open Shift
+                </button>
+                <button
+                  onClick={() => setIsCreateOpen(true)}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 shadow-sm transition-colors"
+                >
+                  <Plus className="w-4 h-4" /> New Load
+                </button>
+              </div>
+
+              {/* Board Layout */}
+              <div className="flex flex-col md:grid md:grid-cols-3 gap-6 h-full">
+
+                {/* Pending Column */}
+                <section className="flex flex-col gap-3 min-w-0">
+                  <div className="flex items-center justify-between sticky top-0 bg-gray-50 z-10 py-2">
+                    <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full bg-gray-400" />
+                      Pending
+                      <span className="bg-gray-200 text-gray-700 text-xs px-2 py-0.5 rounded-full">{sections.pending.length}</span>
+                    </h2>
+                  </div>
+                  <div className="space-y-3">
+                    {sections.pending.map(item => (
+                      'maxPalletCount' in item ? (
+                        <GroupCard
+                          key={item.id}
+                          group={item as LoadGroup}
+                          onClick={() => item && handleViewGroup(item as LoadGroup)}
+                        />
+                      ) : (
+                        <LoadCard
+                          key={item.id}
+                          load={item as Load}
+                          onClick={() => setSelectedLoad(item as Load)}
+                          onIncrement={(e) => handleQuickIncrement(e, item as Load)}
+                          onMissing={(e) => handleSetMissing(e, item as Load)}
+                          onMore={(e) => { e.stopPropagation(); setSelectedLoad(item as Load); }}
+                          onStatusChange={(status) => handleStandaloneStatusChange(item as Load, status)}
+                        />
+                      )
+                    ))}
+                    {sections.pending.length === 0 && (
+                      <div className="text-center py-8 text-gray-400 text-sm border-2 border-dashed border-gray-200 rounded-lg">
+                        No pending loads
+                      </div>
+                    )}
+                  </div>
+                </section>
+
+                {/* In Process Column */}
+                <section className="flex flex-col gap-3 min-w-0">
+                  <div className="flex items-center justify-between sticky top-0 bg-gray-50 z-10 py-2">
+                    <h2 className="text-lg font-bold text-blue-800 flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full bg-blue-500" />
+                      In Process
+                      <span className="bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded-full">{sections.inProcess.length}</span>
+                    </h2>
+                  </div>
+                  <div className="space-y-3">
+                    {sections.inProcess.map(item => (
+                      'maxPalletCount' in item ? (
+                        <GroupCard
+                          key={item.id}
+                          group={item as LoadGroup}
+                          onClick={() => item && handleViewGroup(item as LoadGroup)}
+                        />
+                      ) : (
+                        <LoadCard
+                          key={item.id}
+                          load={item as Load}
+                          onClick={() => setSelectedLoad(item as Load)}
+                          onIncrement={(e) => handleQuickIncrement(e, item as Load)}
+                          onMissing={(e) => handleSetMissing(e, item as Load)}
+                          onMore={(e) => { e.stopPropagation(); setSelectedLoad(item as Load); }}
+                          onStatusChange={(status) => handleStandaloneStatusChange(item as Load, status)}
+                        />
+                      )
+                    ))}
+                    {sections.inProcess.length === 0 && (
+                      <div className="text-center py-8 text-gray-400 text-sm border-2 border-dashed border-gray-200 rounded-lg">
+                        No active loads
+                      </div>
+                    )}
+                  </div>
+                </section>
+
+                {/* Complete Column */}
+                <section className="flex flex-col gap-3 min-w-0">
+                  <div
+                    className="flex items-center justify-between sticky top-0 bg-gray-50 z-10 py-2 cursor-pointer md:cursor-default"
+                    onClick={() => setIsCompleteCollapsed(!isCompleteCollapsed)}
+                  >
+                    <h2 className="text-lg font-bold text-green-800 flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full bg-green-500" />
+                      Complete
+                      <span className="bg-green-100 text-green-800 text-xs px-2 py-0.5 rounded-full">{sections.complete.length}</span>
+                    </h2>
+                    <div className="md:hidden text-gray-500">
+                      {isCompleteCollapsed ? <ChevronRight className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+                    </div>
+                  </div>
+
+                  <div className={clsx("space-y-3", isCompleteCollapsed && "hidden md:block")}>
+                    {sections.complete.map(item => (
+                      'maxPalletCount' in item ? (
+                        <GroupCard
+                          key={item.id}
+                          group={item as LoadGroup}
+                          onClick={() => item && handleViewGroup(item as LoadGroup)}
+                        />
+                      ) : (
+                        <LoadCard
+                          key={item.id}
+                          load={item as Load}
+                          onClick={() => setSelectedLoad(item as Load)}
+                          onIncrement={(e) => handleQuickIncrement(e, item as Load)}
+                          onMissing={(e) => handleSetMissing(e, item as Load)}
+                          onMore={(e) => { e.stopPropagation(); setSelectedLoad(item as Load); }}
+                          onStatusChange={(status) => handleStandaloneStatusChange(item as Load, status)}
+                        />
+                      )
+                    ))}
+                    {sections.complete.length === 0 && (
+                      <div className="text-center py-8 text-gray-400 text-sm border-2 border-dashed border-gray-200 rounded-lg">
+                        No completed loads today
+                      </div>
+                    )}
+                  </div>
+                </section>
+
+              </div>
+            </div>
+          </main>
+
+          <BottomNav
+            onNewLoad={() => setIsCreateOpen(true)}
+            onRefresh={handleRefresh}
+            onCalendar={() => navigate('/calendar/')}
+            onOpenShift={handleOpenShift}
+          />
+
+          {/* Modals */}
+          <CreateLoadModal
+            isOpen={isCreateOpen}
+            onClose={() => setIsCreateOpen(false)}
+            onSubmit={handleCreateLoad}
+            onCreateGroup={handleCreateGroup}
+          />
+
+          <LoadDetailModal
+            load={selectedLoad}
+            onClose={() => setSelectedLoad(null)}
+            onUpdate={handleUpdateLoad}
+            onDelete={handleDeleteLoad}
+          />
+
+          <LoadGroupDetailModal
+            group={selectedGroup}
+            onClose={() => setSelectedGroup(null)}
+            onUpdateGroup={handleUpdateGroup}
+            onDeleteGroup={handleDeleteGroup}
+            onAddLoad={handleAddClientLoad}
+            onUpdateLoad={handleUpdateLoad}
+            onDeleteLoad={handleDeleteLoad}
+            onInspectLoad={setSelectedLoad}
+          />
+
+          <FilterModal
+            isOpen={isFilterOpen}
+            onClose={() => setIsFilterOpen(false)}
+            filters={filters}
+            onApply={setFilters}
+          />
+        </>
+      )}
+
+      <ShiftClosePrompt
+        shift={overdueShift}
+        warehouseTimeZone={warehouseTimeZone}
+        onDismiss={() => setOverdueShift(null)}
+        onCloseShift={handleCloseOverdueShift}
+      />
     </div>
   );
 }

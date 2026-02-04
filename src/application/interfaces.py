@@ -8,7 +8,7 @@ class Repository(Protocol):
     def save_load(self, load: LoadRecord) -> None: ...
 
     def list_active_loads_by_group(
-        self, format_type: str, route_prefix: str
+        self, format_type: str, route_prefix: str, shift_id: Optional[str] = None
     ) -> List[LoadRecord]:
         """
         Returns all active loads (not COMPLETE) that match the criteria.

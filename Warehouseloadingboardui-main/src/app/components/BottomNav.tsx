@@ -1,15 +1,35 @@
 import React from 'react';
-import { Plus, RefreshCw } from 'lucide-react';
+import { Plus, RefreshCw, CalendarDays, Clock } from 'lucide-react';
 
 interface BottomNavProps {
   onNewLoad: () => void;
   onRefresh: () => void;
+  onCalendar?: () => void;
+  onOpenShift?: () => void;
 }
 
-export const BottomNav: React.FC<BottomNavProps> = ({ onNewLoad, onRefresh }) => {
+export const BottomNav: React.FC<BottomNavProps> = ({ onNewLoad, onRefresh, onCalendar, onOpenShift }) => {
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-3 pb-safe z-30 md:hidden shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
       <div className="flex gap-3">
+        {onCalendar && (
+          <button
+            onClick={onCalendar}
+            className="px-4 py-3 bg-white border border-gray-200 text-gray-600 font-semibold rounded-lg active:bg-gray-50 transition-colors"
+            aria-label="Open calendar"
+          >
+            <CalendarDays className="w-5 h-5" />
+          </button>
+        )}
+        {onOpenShift && (
+          <button
+            onClick={onOpenShift}
+            className="px-4 py-3 bg-white border border-blue-200 text-blue-700 font-semibold rounded-lg active:bg-blue-50 transition-colors"
+            aria-label="Open shift"
+          >
+            <Clock className="w-5 h-5" />
+          </button>
+        )}
         <button
           onClick={onRefresh}
           className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-gray-100 text-gray-700 font-bold rounded-lg active:bg-gray-200 transition-colors"

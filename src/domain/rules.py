@@ -21,11 +21,7 @@ def _validate_quantities(load: LoadRecord):
         raise InvariantViolationError("missing_qty must be >= 0")
 
     total_processed = load.loaded_qty + load.missing_qty
-    if total_processed > load.expected_qty:
-        raise InvariantViolationError(
-            f"loaded ({load.loaded_qty}) + missing ({load.missing_qty}) "
-            f"exceeds expected ({load.expected_qty})"
-        )
+    # Allow loaded/missing to exceed expected for in-progress adjustments.
 
 
 def _validate_completion_rule(load: LoadRecord):

@@ -72,9 +72,7 @@ WSGI_APPLICATION = "config.wsgi.application"
 DATABASE_URL = os.environ.get("DATABASE_URL", "").strip()
 
 if DATABASE_URL:
-    DATABASES = {
-        "default": dj_database_url.parse(DATABASE_URL, conn_max_age=600)
-    }
+    DATABASES = {"default": dj_database_url.parse(DATABASE_URL, conn_max_age=600)}
 else:
     DATABASES = {
         "default": {
@@ -88,7 +86,8 @@ AUTH_PASSWORD_VALIDATORS = []
 
 # Internationalization
 LANGUAGE_CODE = "en-us"
-TIME_ZONE = "UTC"
+WAREHOUSE_TIME_ZONE = os.environ.get("WAREHOUSE_TIME_ZONE", "America/Puerto_Rico")
+TIME_ZONE = os.environ.get("TIME_ZONE", WAREHOUSE_TIME_ZONE)
 USE_I18N = True
 USE_TZ = True
 

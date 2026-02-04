@@ -126,7 +126,7 @@ export const CreateLoadModal: React.FC<CreateLoadModalProps & { onCreateGroup: (
                   <label className="block text-sm font-medium text-gray-700 mb-1">Max Pallet Count</label>
                   <input
                     type="number"
-                    {...register('maxPalletCount', { required: 'Required', min: 1 })}
+                    {...register('maxPalletCount', { required: 'Required', min: 1, valueAsNumber: true })}
                     className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none font-black text-blue-700"
                     placeholder="e.g. 10"
                   />
@@ -152,7 +152,7 @@ export const CreateLoadModal: React.FC<CreateLoadModalProps & { onCreateGroup: (
                     <label className="block text-sm font-medium text-gray-700 mb-1">Expected Qty</label>
                     <input
                       type="number"
-                      {...register('expectedQty', { required: true, min: 1 })}
+                      {...register('expectedQty', { required: true, min: 1, valueAsNumber: true })}
                       className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none"
                     />
                   </div>
@@ -176,7 +176,7 @@ export const CreateLoadModal: React.FC<CreateLoadModalProps & { onCreateGroup: (
                     <label className="block text-sm font-medium text-gray-700 mb-1">Pallet Count</label>
                     <input
                       type="number"
-                      {...register('palletCount', { required: true, min: 1 })}
+                      {...register('palletCount', { required: true, min: 1, valueAsNumber: true })}
                       className="w-full px-4 py-3 rounded-lg border border-gray-300 outline-none"
                     />
                   </div>

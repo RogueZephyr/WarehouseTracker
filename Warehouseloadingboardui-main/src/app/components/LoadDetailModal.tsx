@@ -118,7 +118,12 @@ export const LoadDetailModal: React.FC<LoadDetailModalProps> = ({ load, onClose,
                     type="number"
                     value={load.loadedQty}
                     onChange={(e) => onUpdate({ ...load, loadedQty: parseInt(e.target.value, 10) || 0 })}
-                    className="w-24 text-center text-4xl font-black text-blue-700 bg-transparent border-b-2 border-blue-200 focus:border-blue-500 outline-none transition-colors"
+                    className={clsx(
+                      "w-24 text-center text-4xl font-black bg-transparent border-b-2 outline-none transition-colors",
+                      load.loadedQty > load.expectedQty
+                        ? "text-red-600 border-red-200 focus:border-red-500"
+                        : "text-blue-700 border-blue-200 focus:border-blue-500"
+                    )}
                   />
                 </div>
                 <div className="text-gray-300 text-3xl font-light pb-1 px-4">/</div>
@@ -233,15 +238,15 @@ export const LoadDetailModal: React.FC<LoadDetailModalProps> = ({ load, onClose,
             </div>
           </div>
 
-          {/* Status & Actions */}
-          <div className="space-y-4">
-            <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider">Status & Verification</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {/* Status Selector */}
-              <div className="p-4 rounded-lg border border-gray-200">
-                <label className="block text-xs font-medium text-gray-500 mb-2 uppercase">Current Status</label>
-                <select
-                  value={load.status}
+        {/* Status & Actions */}
+        <div className="space-y-4">
+          <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider">Status & Verification</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Status Selector */}
+            <div className="p-4 rounded-lg border border-gray-200">
+              <label className="block text-xs font-medium text-gray-500 mb-2 uppercase">Current Status</label>
+              <select
+                value={load.status}
                   onChange={(e) => handleStatusChange(e.target.value as LoadStatus)}
                   className="w-full p-2 bg-white border border-gray-300 rounded-md font-medium text-gray-900 focus:ring-2 focus:ring-blue-500 outline-none"
                 >
@@ -251,13 +256,32 @@ export const LoadDetailModal: React.FC<LoadDetailModalProps> = ({ load, onClose,
                   {load.format === 'Large' && <option value="Unverified">Unverified</option>}
                   {load.format === 'Large' && <option value="Verified">Verified</option>}
                 </select>
-              </div>
+            </div>
 
-              {/* Load Order */}
+            {load.format === 'Large' && (
               <div className="p-4 rounded-lg border border-gray-200">
-                <label className="block text-xs font-medium text-gray-500 mb-2 uppercase">Load Order</label>
-                <select
-                  value={load.loadOrder}
+                <label className="block text-xs font-medium text-gray-500 mb-2 uppercase">Pallet Count</label>
+                <input
+                  type="number"
+                  min={0}
+                  value={load.palletCount ?? 0}
+                  onChange={(e) => {
+                    const next = parseInt(e.target.value, 10);
+                    onUpdate({
+                      ...load,
+                      palletCount: Number.isNaN(next) ? 0 : Math.max(0, next)
+                    });
+                  }}
+                  className="w-full p-2 bg-white border border-gray-300 rounded-md font-medium text-gray-900 focus:ring-2 focus:ring-blue-500 outline-none"
+                />
+              </div>
+            )}
+
+            {/* Load Order */}
+            <div className="p-4 rounded-lg border border-gray-200">
+              <label className="block text-xs font-medium text-gray-500 mb-2 uppercase">Load Order</label>
+              <select
+                value={load.loadOrder}
                   onChange={(e) => onUpdate({ ...load, loadOrder: e.target.value as any })}
                   className="w-full p-2 bg-white border border-gray-300 rounded-md font-medium text-gray-900 focus:ring-2 focus:ring-blue-500 outline-none mb-3"
                 >
@@ -267,27 +291,6 @@ export const LoadDetailModal: React.FC<LoadDetailModalProps> = ({ load, onClose,
                   <option value="MP">MP</option>
                   <option value="P">P</option>
                 </select>
-
-                <div className="flex gap-2 pt-2 border-t border-gray-100">
-                  <button
-                    onClick={toggleNA}
-                    className={clsx(
-                      "flex-1 py-1.5 rounded text-[10px] font-bold border transition-all",
-                      load.isNA ? "bg-gray-800 text-white border-gray-800 shadow-sm" : "bg-white text-gray-400 border-gray-200 hover:bg-gray-50"
-                    )}
-                  >
-                    N/A
-                  </button>
-                  <button
-                    onClick={toggleFND}
-                    className={clsx(
-                      "flex-1 py-1.5 rounded text-[10px] font-bold border transition-all",
-                      load.isFND ? "bg-amber-600 text-white border-amber-600 shadow-sm" : "bg-white text-gray-400 border-gray-200 hover:bg-amber-50"
-                    )}
-                  >
-                    FND
-                  </button>
-                </div>
               </div>
             </div>
           </div>

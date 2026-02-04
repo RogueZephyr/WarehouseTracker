@@ -95,12 +95,15 @@ class JsonRepository(Repository):
         return False
 
     def list_active_loads_by_group(
-        self, format_type: str, route_prefix: str
+        self, format_type: str, route_prefix: str, shift_id: Optional[str] = None
     ) -> List[LoadRecord]:
         loads = self._load_all_records()
         active_loads = []
         for load in loads:
             if load.status == LoadStatus.COMPLETE:
+                continue
+
+            if shift_id and load.shift_id != shift_id:
                 continue
 
             # Filter by format (loose string match or enum)

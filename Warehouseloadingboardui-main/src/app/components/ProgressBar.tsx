@@ -15,7 +15,14 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({ current, total, missin
     <div className={clsx('w-full', className)}>
       <div className="flex justify-between items-end mb-1">
         <div className="flex items-baseline space-x-1">
-          <span className="text-2xl font-bold text-gray-900 leading-none">{current}</span>
+          <span
+            className={clsx(
+              "text-2xl font-bold leading-none",
+              current > total ? "text-red-600" : "text-gray-900"
+            )}
+          >
+            {current}
+          </span>
           <span className="text-sm text-gray-500 font-medium">/ {total}</span>
         </div>
         {missingCount > 0 && (

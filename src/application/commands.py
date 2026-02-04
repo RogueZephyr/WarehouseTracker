@@ -9,6 +9,7 @@ class CreateLoadCommand:
     expected_qty: int
     format: LoadFormat
     load_order: str
+    shift_id: Optional[str] = None
     # Small specific
     route_code: Optional[str] = None
     route_group_id: Optional[str] = None

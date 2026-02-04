@@ -32,6 +32,7 @@ class LoadGroup:
     max_pallet_count: int
     id: str = field(default_factory=lambda: str(uuid.uuid4()))
     status: LoadStatus = LoadStatus.PENDING
+    shift_id: Optional[str] = None
     created_at: str = field(default_factory=lambda: datetime.now().isoformat())
     updated_at: str = field(default_factory=lambda: datetime.now().isoformat())
 
@@ -69,6 +70,7 @@ class LoadRecord:
     # Constraints / Assignments
     vehicle_id: Optional[str] = None
     group_id: Optional[str] = None  # Link to LoadGroup
+    shift_id: Optional[str] = None
 
     # Small Format Specific
     route_code: Optional[str] = None
