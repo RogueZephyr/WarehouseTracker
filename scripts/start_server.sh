@@ -1,28 +1,20 @@
 #!/usr/bin/env bash
-set -uo pipefail
+set -euo pipefail
 
-echo "Ensuring dependencies are installed..."
-if ! python -m pip install -r requirements.txt; then
-  echo "Dependency installation failed." >&2
-  exit 1
-fi
+PORT_VALUE=${PORT:-8000}
+WEB_CONCURRENCY_VALUE=${WEB_CONCURRENCY:-2}
+GUNICORN_THREADS_VALUE=${GUNICORN_THREADS:-4}
+GUNICORN_TIMEOUT_VALUE=${GUNICORN_TIMEOUT:-120}
 
-echo "Checking for migration metadata changes..."
-if python manage.py makemigrations --dry-run --check --verbosity 1; then
-  echo "No new migration changes detected. Skipping migrate."
-else
-  echo "Model changes detected; running migrations."
-  if ! python manage.py migrate --noinput; then
-    echo "Migration step failed." >&2
-    exit 1
-  fi
-fi
+echo "Applying migrations..."
+python manage.py migrate --noinput
 
 echo "Collecting static files..."
-if ! python manage.py collectstatic --noinput; then
-  echo "Collectstatic failed." >&2
-  exit 1
-fi
+python manage.py collectstatic --noinput
 
-echo "Starting Gunicorn..."
-exec gunicorn config.wsgi:application
+echo "Starting Gunicorn on port ${PORT_VALUE}..."
+exec gunicorn config.wsgi:application \
+  --bind "0.0.0.0:${PORT_VALUE}" \
+  --workers "${WEB_CONCURRENCY_VALUE}" \
+  --threads "${GUNICORN_THREADS_VALUE}" \
+  --timeout "${GUNICORN_TIMEOUT_VALUE}"

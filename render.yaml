@@ -5,7 +5,7 @@ services:
     plan: starter
     region: oregon
     branch: main
-    buildCommand: pip install -r requirements.txt
+    buildCommand: bash scripts/render_build.sh
     startCommand: bash scripts/start_server.sh
     envVars:
       - key: SECRET_KEY
